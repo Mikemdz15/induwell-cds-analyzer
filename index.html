@@ -533,13 +533,17 @@
                 <div class="abc-details-container">
                     <!-- Tabla de Desviaciones -->
                     <div class="abc-table-container">
-                        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">Desviaciones Críticas detectadas en Clase A (Ventas &lt; 75% del promedio)</h4>
+                        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Desviaciones Críticas detectadas en Clase A (Ventas &lt; 75% del promedio)</h4>
+                        <p style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.35;">
+                            * El promedio histórico semanal se calcula a partir del volumen de ventas solicitado (en cajas) de las últimas 8 semanas (o todas las semanas disponibles en el archivo si son menos de 8).
+                        </p>
                         <div class="table-wrapper" style="max-height: 250px; overflow-y: auto;">
                             <table class="data-table" style="font-size: 11px;">
                                 <thead>
                                     <tr>
                                         <th>SKU</th>
                                         <th>Artículo</th>
+                                        <th>Pzas/Caja</th>
                                         <th>Hist. Prom. (Cajas)</th>
                                         <th>Ped. Sem. Activa</th>
                                         <th>Var %</th>
@@ -548,7 +552,7 @@
                                 </thead>
                                 <tbody id="abc-alerts-body">
                                     <tr>
-                                        <td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
+                                        <td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
                                     </tr>
                                 </tbody>
                             </table>

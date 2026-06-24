@@ -2597,6 +2597,39 @@ body {
     border-radius: 3px;
 }
 
+/* Coloración de la columna Subsidiaria/SKU según clasificación ABC */
+.data-table td.sku-class-a {
+    background-color: rgba(56, 81, 61, 0.08) !important;
+    border-left: 4px solid var(--neon-green) !important;
+    color: var(--text-primary) !important;
+}
+
+.data-table td.sku-class-b {
+    background-color: rgba(208, 150, 90, 0.12) !important;
+    border-left: 4px solid var(--neon-orange) !important;
+    color: var(--text-primary) !important;
+}
+
+.data-table td.sku-class-c {
+    background-color: rgba(142, 150, 144, 0.1) !important;
+    border-left: 4px solid var(--text-muted) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Mantener el efecto hover de las filas respetando el tinte de categoría */
+.data-table tr:hover td.sku-class-a {
+    background-color: rgba(56, 81, 61, 0.14) !important;
+}
+
+.data-table tr:hover td.sku-class-b {
+    background-color: rgba(208, 150, 90, 0.18) !important;
+}
+
+.data-table tr:hover td.sku-class-c {
+    background-color: rgba(142, 150, 144, 0.16) !important;
+}
+
+
 
 
 

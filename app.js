@@ -44,6 +44,7 @@ let volumeChart = null;
 
 // Mapa de precios de venta (cargado desde la hoja 'Informacion')
 let productPrices = {};
+let productPzasPorCaja = {};
 
 // Inicialización de la aplicación
 document.addEventListener("DOMContentLoaded", () => {
@@ -447,6 +448,7 @@ function getCellText(sheet, colIndex, rowIndex, defaultVal = "") {
 // Procesar la hoja de Informacion de productos y precios
 function parseInformacionSheet(workbook) {
     productPrices = {};
+    productPzasPorCaja = {};
     if (!workbook) return;
     
     const infoSheetName = Object.keys(workbook.Sheets).find(k => k.toLowerCase() === "informacion");
@@ -482,10 +484,12 @@ function parseInformacionSheet(workbook) {
         if (sub) {
             if (skuInterno) {
                 productPrices[`${sub}_${skuInterno}`] = precioCaja;
+                productPzasPorCaja[`${sub}_${skuInterno}`] = pzasPorCaja;
             }
             if (skuNeto) {
                 const cleanNeto = skuNeto.split('.')[0];
                 productPrices[`${sub}_${cleanNeto}`] = precioCaja;
+                productPzasPorCaja[`${sub}_${cleanNeto}`] = pzasPorCaja;
             }
         }
     }
@@ -1544,7 +1548,7 @@ function renderGridTable() {
             }
             
             tr.innerHTML = `
-                <td class="sticky-col">
+                <td class="sticky-col sku-class-${sku.class ? sku.class.toLowerCase() : 'c'}">
                     <span class="sku-sub ${sku.subsidiary === 'ALPHALAB' ? 'sub-alphalab' : 'sub-velaluz'}">${sku.subsidiary}</span><br>
                     <span class="sku-cell">${sku.sku_interno}</span>
                 </td>
@@ -1639,7 +1643,7 @@ function renderGridTable() {
             }
             
             tr.innerHTML = `
-                <td class="sticky-col">
+                <td class="sticky-col sku-class-${sku.class ? sku.class.toLowerCase() : 'c'}">
                     <span class="sku-sub ${sku.subsidiary === 'ALPHALAB' ? 'sub-alphalab' : 'sub-velaluz'}">${sku.subsidiary}</span><br>
                     <span class="sku-cell">${sku.sku_interno}</span>
                 </td>
@@ -3679,13 +3683,23 @@ function calculateABCClassification() {
     if (!currentWorkbook) return;
     
     const weekSheets = currentWorkbook.SheetNames.filter(name => name.startsWith("Sem"));
-    const totalWeeks = weekSheets.length;
-    if (totalWeeks === 0) return;
+    if (weekSheets.length === 0) return;
+    
+    // Ordenar ascendentemente por número de semana (ej: Sem 22, Sem 23, Sem 24...)
+    const sortedWeeks = [...weekSheets].sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, ""), 10) || 0;
+        const numB = parseInt(b.replace(/\D/g, ""), 10) || 0;
+        return numA - numB;
+    });
+    
+    // Seleccionar las últimas 8 semanas (o todas si hay menos de 8)
+    const last8Weeks = sortedWeeks.slice(-8);
+    const totalWeeksForAverage = last8Weeks.length;
     
     // Mapa para acumular histórico por SKU
     const skuHistory = {};
     
-    weekSheets.forEach(sheetName => {
+    last8Weeks.forEach(sheetName => {
         const sheet = currentWorkbook.Sheets[sheetName];
         if (!sheet) return;
         const ref = sheet['!ref'];
@@ -3723,6 +3737,9 @@ function calculateABCClassification() {
             const price = productPrices[lookupKeyInt] !== undefined 
                 ? productPrices[lookupKeyInt] 
                 : (productPrices[lookupKeyNet] !== undefined ? productPrices[lookupKeyNet] : 0);
+            const pzasPorCaja = productPzasPorCaja[lookupKeyInt] !== undefined
+                ? productPzasPorCaja[lookupKeyInt]
+                : (productPzasPorCaja[lookupKeyNet] !== undefined ? productPzasPorCaja[lookupKeyNet] : 1);
             
             const key = `${formattedSub}_${sku_interno}`;
             if (!skuHistory[key]) {
@@ -3734,6 +3751,7 @@ function calculateABCClassification() {
                     totalRequestedVol: 0,
                     totalRequestedVal: 0,
                     price,
+                    pzasPorCaja,
                     weeklyDemands: {}
                 };
             }
@@ -3777,11 +3795,23 @@ function calculateABCClassification() {
         }
         
         sku.class = cls;
-        sku.historicalAverage = sku.totalRequestedVol / totalWeeks;
+        sku.historicalAverage = sku.totalRequestedVol / totalWeeksForAverage;
         
         abcClasses[cls].count++;
         abcClasses[cls].vol += sku.totalRequestedVol;
         abcClasses[cls].val += sku.totalRequestedVal;
+    });
+    
+    // Crear un mapa y asignar la clase calculada a cada SKU en appData.skus
+    const classMap = {};
+    skuList.forEach(s => {
+        const key = `${s.subsidiary}_${s.sku_interno}`.toUpperCase();
+        classMap[key] = s.class;
+    });
+    
+    appData.skus.forEach(s => {
+        const key = `${s.subsidiary}_${s.sku_interno}`.toUpperCase();
+        s.class = classMap[key] || "C";
     });
     
     appData.abcClassification = {
@@ -3848,7 +3878,8 @@ function renderABCOperations() {
                 <tr>
                     <td style="font-weight: 600;">${sku.sku_interno}</td>
                     <td>${sku.name}</td>
-                    <td class="num-val">${sku.historicalAverage.toFixed(1)}</td>
+                    <td class="num-val">${sku.pzasPorCaja || 1}</td>
+                    <td class="num-val">${sku.historicalAverage.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
                     <td class="num-val" style="font-weight: 600;">${activeReq.toLocaleString('es-MX')}</td>
                     <td class="num-val" style="color: ${varColor}; font-weight: 600;">${varSign}${varPct.toFixed(1)}%</td>
                     <td>
@@ -3860,7 +3891,7 @@ function renderABCOperations() {
     });
     
     if (countDeviations === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin desviaciones críticas de demanda detectadas en Clase A.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin desviaciones críticas de demanda detectadas en Clase A.</td></tr>`;
     } else {
         tbody.innerHTML = tableHtml;
     }
