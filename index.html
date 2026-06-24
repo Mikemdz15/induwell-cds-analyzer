@@ -474,6 +474,105 @@
                 </div>
             </section>
 
+            <!-- SECCIÓN DE PRIORIZACIÓN Y ANÁLISIS ABC (NUEVO) -->
+            <section id="abc-analysis-wrapper" class="grid-container abc-section" style="margin-top: 24px; display: none;">
+                <div class="table-header-title">
+                    <div>
+                        <h3>Priorización y Desempeño Comercial (Análisis ABC)</h3>
+                        <p>Clasificación dinámica por valor de demanda acumulado y alertas de productos Clase A que están vendiendo por debajo de su promedio histórico semanal.</p>
+                    </div>
+                </div>
+
+                <!-- Resumen de Tarjetas ABC -->
+                <div class="abc-summary-grid">
+                    <!-- Tarjeta Clase A -->
+                    <div class="abc-card class-a">
+                        <div class="abc-card-header">
+                            <span class="abc-badge badge-a">Clase A</span>
+                            <span class="abc-share-label">Top 80% Demanda</span>
+                        </div>
+                        <div class="abc-card-body">
+                            <div class="abc-stat"><span id="abc-count-a">0</span> <small>SKUs</small></div>
+                            <div class="abc-substats">
+                                <div>Volumen: <strong id="abc-vol-a">0%</strong></div>
+                                <div>Valor: <strong id="abc-val-a">0%</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Tarjeta Clase B -->
+                    <div class="abc-card class-b">
+                        <div class="abc-card-header">
+                            <span class="abc-badge badge-b">Clase B</span>
+                            <span class="abc-share-label">Siguiente 15%</span>
+                        </div>
+                        <div class="abc-card-body">
+                            <div class="abc-stat"><span id="abc-count-b">0</span> <small>SKUs</small></div>
+                            <div class="abc-substats">
+                                <div>Volumen: <strong id="abc-vol-b">0%</strong></div>
+                                <div>Valor: <strong id="abc-val-b">0%</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Tarjeta Clase C -->
+                    <div class="abc-card class-c">
+                        <div class="abc-card-header">
+                            <span class="abc-badge badge-c">Clase C</span>
+                            <span class="abc-share-label">Cola Larga 5%</span>
+                        </div>
+                        <div class="abc-card-body">
+                            <div class="abc-stat"><span id="abc-count-c">0</span> <small>SKUs</small></div>
+                            <div class="abc-substats">
+                                <div>Volumen: <strong id="abc-vol-c">0%</strong></div>
+                                <div>Valor: <strong id="abc-val-c">0%</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Alertas de Desviación Comercial y Contenedor de IA -->
+                <div class="abc-details-container">
+                    <!-- Tabla de Desviaciones -->
+                    <div class="abc-table-container">
+                        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">Desviaciones Críticas detectadas en Clase A (Ventas &lt; 75% del promedio)</h4>
+                        <div class="table-wrapper" style="max-height: 250px; overflow-y: auto;">
+                            <table class="data-table" style="font-size: 11px;">
+                                <thead>
+                                    <tr>
+                                        <th>SKU</th>
+                                        <th>Artículo</th>
+                                        <th>Hist. Prom. (Cajas)</th>
+                                        <th>Ped. Sem. Activa</th>
+                                        <th>Var %</th>
+                                        <th>Estatus</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="abc-alerts-body">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Panel de Observaciones IA -->
+                    <div class="abc-ia-panel">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <i data-lucide="sparkles" style="width: 14px; height: 14px; color: var(--ai-purple);"></i>
+                                <h4 style="font-size: 12px; font-weight: 700; color: var(--ai-purple); margin: 0;">Observaciones Comerciales IA</h4>
+                            </div>
+                            <div id="abc-ia-text" style="font-size: 11.5px; line-height: 1.45; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
+                                Selecciona una empresa y semana para activar el análisis inteligente de mezcla y desviación comercial.
+                            </div>
+                        </div>
+                        <button id="abc-ia-analyze-btn" class="btn btn-outline" style="font-size: 11px; padding: 6px; border-color: var(--ai-purple); color: var(--ai-purple); width: 100%; margin-top: 10px; gap: 4px; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="play" style="width: 12px; height: 12px;"></i> Analizar Mezcla Comercial
+                        </button>
+                    </div>
+                </div>
+            </section>
+
             <!-- SECCIÓN DE COMENTARIOS DE MATRIZ -->
             <section id="comments-matrix-wrapper" class="comment-section matrix-section">
                 <div class="comment-header">

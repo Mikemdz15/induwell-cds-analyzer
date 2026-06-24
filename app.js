@@ -254,6 +254,14 @@ function initUI() {
         });
     }
 
+    // Botón de Análisis de Mezcla Comercial con IA
+    const abcAnalyzeBtn = document.getElementById("abc-ia-analyze-btn");
+    if (abcAnalyzeBtn) {
+        abcAnalyzeBtn.addEventListener("click", () => {
+            analyzeAbcMixWithGemini();
+        });
+    }
+
     // Configurar eventos de comentarios
     setupCommentEvents();
 }
@@ -887,6 +895,8 @@ function applyFilters() {
     }
     
     recalculateWeeklyKPIs();
+    calculateABCClassification();
+    renderABCOperations();
     renderGridTable();
     renderTriageAlertsPanel();
     renderCharts();
@@ -3659,3 +3669,321 @@ async function deleteComment(commentId, section) {
     await loadComments();
     showNotification("Comentario eliminado correctamente", "success");
 }
+
+// ==========================================================================
+// NUEVA CAPACIDAD: PRIORIZACIÓN AUTOMÁTICA ABC Y ALERTAS COMERCIALES
+// ==========================================================================
+
+// Función para calcular la clasificación ABC por valor de demanda (Pareto)
+function calculateABCClassification() {
+    if (!currentWorkbook) return;
+    
+    const weekSheets = currentWorkbook.SheetNames.filter(name => name.startsWith("Sem"));
+    const totalWeeks = weekSheets.length;
+    if (totalWeeks === 0) return;
+    
+    // Mapa para acumular histórico por SKU
+    const skuHistory = {};
+    
+    weekSheets.forEach(sheetName => {
+        const sheet = currentWorkbook.Sheets[sheetName];
+        if (!sheet) return;
+        const ref = sheet['!ref'];
+        if (!ref) return;
+        const range = XLSX.utils.decode_range(ref);
+        const maxRow = range.e.r + 1;
+        
+        for (let r = 3; r <= maxRow; r++) {
+            const subsidiary = getCellText(sheet, 0, r, null);
+            if (!subsidiary) continue;
+            
+            const formattedSub = subsidiary.toUpperCase().trim();
+            if (formattedSub === "" || formattedSub === "EMPRESA" || formattedSub.includes("---")) {
+                continue;
+            }
+            
+            // Filtrar por la subsidiaria actualmente seleccionada en el UI
+            if (appData.selectedSubsidiary !== "TODAS" && formattedSub !== appData.selectedSubsidiary) {
+                continue;
+            }
+            
+            const sku_neto = getCellText(sheet, 1, r, "");
+            const sku_interno = getCellText(sheet, 2, r, "");
+            const name = getCellText(sheet, 3, r, "");
+            
+            let weeklyReq = 0;
+            for (let d = 0; d < 6; d++) {
+                const startCol = 4 + d * 12;
+                weeklyReq += getCellValue(sheet, startCol + 1, r, 0);
+            }
+            
+            const cleanNetoLookup = sku_neto.trim().split('.')[0];
+            const lookupKeyInt = `${formattedSub}_${sku_interno.toUpperCase().trim()}`;
+            const lookupKeyNet = `${formattedSub}_${cleanNetoLookup}`;
+            const price = productPrices[lookupKeyInt] !== undefined 
+                ? productPrices[lookupKeyInt] 
+                : (productPrices[lookupKeyNet] !== undefined ? productPrices[lookupKeyNet] : 0);
+            
+            const key = `${formattedSub}_${sku_interno}`;
+            if (!skuHistory[key]) {
+                skuHistory[key] = {
+                    sku_interno,
+                    sku_neto,
+                    name,
+                    subsidiary: formattedSub,
+                    totalRequestedVol: 0,
+                    totalRequestedVal: 0,
+                    price,
+                    weeklyDemands: {}
+                };
+            }
+            skuHistory[key].totalRequestedVol += weeklyReq;
+            skuHistory[key].totalRequestedVal += weeklyReq * price;
+            skuHistory[key].weeklyDemands[sheetName] = weeklyReq;
+        }
+    });
+    
+    const skuList = Object.values(skuHistory);
+    
+    let grandTotalVal = 0;
+    let grandTotalVol = 0;
+    skuList.forEach(sku => {
+        grandTotalVal += sku.totalRequestedVal;
+        grandTotalVol += sku.totalRequestedVol;
+    });
+    
+    // Ordenar de mayor a menor por valor financiero acumulado
+    skuList.sort((a, b) => b.totalRequestedVal - a.totalRequestedVal);
+    
+    let runningVal = 0;
+    let cumValPct = 0;
+    
+    const abcClasses = {
+        A: { count: 0, vol: 0, val: 0 },
+        B: { count: 0, vol: 0, val: 0 },
+        C: { count: 0, vol: 0, val: 0 }
+    };
+    
+    skuList.forEach((sku, idx) => {
+        const prevCumPct = cumValPct;
+        runningVal += sku.totalRequestedVal;
+        cumValPct = grandTotalVal > 0 ? (runningVal / grandTotalVal) : 0;
+        
+        let cls = "C";
+        if (prevCumPct < 0.8) {
+            cls = "A";
+        } else if (prevCumPct < 0.95) {
+            cls = "B";
+        }
+        
+        sku.class = cls;
+        sku.historicalAverage = sku.totalRequestedVol / totalWeeks;
+        
+        abcClasses[cls].count++;
+        abcClasses[cls].vol += sku.totalRequestedVol;
+        abcClasses[cls].val += sku.totalRequestedVal;
+    });
+    
+    appData.abcClassification = {
+        skuList,
+        grandTotalVal,
+        grandTotalVol,
+        abcClasses
+    };
+}
+
+// Función para pintar la clasificación ABC y la tabla de alertas
+function renderABCOperations() {
+    const wrapper = document.getElementById("abc-analysis-wrapper");
+    if (!wrapper) return;
+    
+    if (!appData.abcClassification) {
+        wrapper.style.display = "none";
+        return;
+    }
+    
+    wrapper.style.display = "block";
+    
+    const { grandTotalVal, grandTotalVol, abcClasses, skuList } = appData.abcClassification;
+    
+    // Pintar tarjetas de participación
+    const classes = ['A', 'B', 'C'];
+    classes.forEach(cls => {
+        const countEl = document.getElementById(`abc-count-${cls.toLowerCase()}`);
+        const volEl = document.getElementById(`abc-vol-${cls.toLowerCase()}`);
+        const valEl = document.getElementById(`abc-val-${cls.toLowerCase()}`);
+        
+        const data = abcClasses[cls];
+        if (countEl) countEl.textContent = data.count;
+        
+        const volShare = grandTotalVol > 0 ? (data.vol / grandTotalVol) * 100 : 0;
+        const valShare = grandTotalVal > 0 ? (data.val / grandTotalVal) * 100 : 0;
+        
+        if (volEl) volEl.textContent = volShare.toFixed(1) + "%";
+        if (valEl) valEl.textContent = valShare.toFixed(1) + "%";
+    });
+    
+    // Pintar tabla de desviaciones de Clase A
+    const tbody = document.getElementById("abc-alerts-body");
+    if (!tbody) return;
+    
+    const activeWeek = appData.selectedWeekName;
+    const classASkus = skuList.filter(s => s.class === 'A');
+    
+    let tableHtml = "";
+    let countDeviations = 0;
+    
+    classASkus.forEach(sku => {
+        const activeReq = sku.weeklyDemands[activeWeek] || 0;
+        const threshold = 0.75 * sku.historicalAverage;
+        const isAlert = activeReq < threshold;
+        
+        if (isAlert) {
+            countDeviations++;
+            const varPct = sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
+            const varSign = varPct >= 0 ? "+" : "";
+            const varColor = "var(--neon-red)";
+            
+            tableHtml += `
+                <tr>
+                    <td style="font-weight: 600;">${sku.sku_interno}</td>
+                    <td>${sku.name}</td>
+                    <td class="num-val">${sku.historicalAverage.toFixed(1)}</td>
+                    <td class="num-val" style="font-weight: 600;">${activeReq.toLocaleString('es-MX')}</td>
+                    <td class="num-val" style="color: ${varColor}; font-weight: 600;">${varSign}${varPct.toFixed(1)}%</td>
+                    <td>
+                        <span class="abc-badge-alert">DESVIACIÓN</span>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+    
+    if (countDeviations === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin desviaciones críticas de demanda detectadas en Clase A.</td></tr>`;
+    } else {
+        tbody.innerHTML = tableHtml;
+    }
+
+    // Resetear el panel de IA cuando se cambian filtros
+    const iaText = document.getElementById("abc-ia-text");
+    if (iaText) {
+        iaText.innerHTML = `Selecciona una empresa y semana para activar el análisis inteligente de mezcla y desviación comercial.`;
+    }
+}
+
+// Analizar la mezcla comercial y desviaciones Clase A utilizando Gemini AI
+async function analyzeAbcMixWithGemini() {
+    const key = localStorage.getItem("gemini_api_key");
+    const container = document.getElementById("abc-ia-text");
+    if (!key) {
+        if (container) {
+            container.innerHTML = `<span style="color: var(--neon-red); font-weight: 600;">⚠️ Error: No has configurado tu Gemini API Key. Por favor abre el panel de configuración de la API arriba e introduce tu clave.</span>`;
+        }
+        toggleApiSettings(true);
+        return;
+    }
+
+    if (!container) return;
+
+    // Mostrar estado de carga
+    container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; color: var(--ai-purple); padding: 8px 0;">
+            <div class="spinner" style="width: 14px; height: 14px; margin-bottom: 0;"></div>
+            <span>Efectuando análisis inteligente de mezcla comercial...</span>
+        </div>
+    `;
+
+    try {
+        const activeWeek = appData.selectedWeekName;
+        const subsidiary = appData.selectedSubsidiary;
+        
+        let skuDataForAI = [];
+        let totalSkus = 0;
+        let totalA = 0;
+        let countDeviations = 0;
+        
+        if (appData.abcClassification && appData.abcClassification.skuList) {
+            totalSkus = appData.abcClassification.skuList.length;
+            appData.abcClassification.skuList.forEach(sku => {
+                if (sku.class === 'A') {
+                    totalA++;
+                    const activeReq = sku.weeklyDemands[activeWeek] || 0;
+                    const isAlert = activeReq < 0.75 * sku.historicalAverage;
+                    if (isAlert) {
+                        countDeviations++;
+                    }
+                    const varPct = sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
+                    skuDataForAI.push({
+                        sku: sku.sku_interno,
+                        articulo: sku.name,
+                        promedioHistorico: sku.historicalAverage.toFixed(1),
+                        pedidoSemanaActiva: activeReq,
+                        variacionPct: varPct.toFixed(1) + "%",
+                        desviacionCritica: isAlert ? "SÍ" : "NO"
+                    });
+                }
+            });
+        }
+        
+        const promptText = `
+Analiza la mezcla comercial y las desviaciones críticas de demanda para los productos Clase A (los que concentran el 80% del valor de venta) en la semana **${activeWeek}** para la subsidiaria **${subsidiary}**.
+
+RESUMEN EJECUTIVO:
+- Total de productos Clase A, B, C: ${totalSkus}
+- Productos Clase A: ${totalA}
+- Desviaciones críticas detectadas en Clase A: ${countDeviations}
+
+DATOS DE DESVIACIÓN COMERCIAL DE PRODUCTOS CLASE A:
+${JSON.stringify(skuDataForAI, null, 2)}
+
+INSTRUCCIONES DE RESPUESTA:
+1. Explica brevemente qué significa esta mezcla comercial y el impacto de las desviaciones.
+2. Identifica los productos Clase A con mayores variaciones negativas y explica el riesgo para el OTIF o el cumplimiento comercial.
+3. Propón 3 acciones correctivas concretas de nivelación de abasto o comerciales (por ejemplo, coordinar con ventas o adelantar producción).
+Sé muy conciso, directo, clínico y ejecutivo. No uses introducciones formales o saludos. Responde en español en un formato de lista de viñetas muy claro.
+`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: promptText }]
+                }],
+                systemInstruction: {
+                    parts: [{ text: "Eres el Director Clínico de Cadena de Suministro en Induwell. Haces análisis ejecutivos breves, objetivos y basados en datos sobre la mezcla comercial de los productos Clase A." }]
+                },
+                generationConfig: {
+                    temperature: 0.15,
+                    maxOutputTokens: 1000
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorJson = await response.json();
+            throw new Error(errorJson.error?.message || `Error HTTP ${response.status}`);
+        }
+
+        const resJson = await response.json();
+        const responseText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (responseText) {
+            let htmlContent = responseText
+                .replace(/\n/g, "<br>")
+                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                .replace(/\* /g, "• ");
+            container.innerHTML = `<div style="font-size: 11px; line-height: 1.45; color: var(--text-secondary);">${htmlContent}</div>`;
+        } else {
+            container.innerHTML = `<span style="color: var(--text-muted);">No se recibió una respuesta legible del modelo de IA.</span>`;
+        }
+
+    } catch (error) {
+        console.error("Gemini ABC Error:", error);
+        container.innerHTML = `<span style="color: var(--neon-red);">⚠️ Error al comunicarse con Gemini: ${error.message}. Verifica tu API Key.</span>`;
+    }
+}
+
