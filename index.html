@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain & S&OP Analyzer - Grupo Induwell</title>
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="index.css?v=6">
+    <!-- Chart.js para visualización de datos -->
+    <script src="chart.umd.js"></script>
+    <!-- SheetJS para leer y parsear archivos Excel -->
+    <script src="xlsx.full.min.js"></script>
+    <!-- Iconos Lucide -->
+    <script src="lucide.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- CONTENEDOR DE AUTENTICACIÓN Y ENTORNOS -->
+    <div id="auth-overlay" class="auth-overlay-container">
+        
+        <!-- ETAPA 1: PANTALLA DE LOGIN -->
+        <div id="login-container" class="auth-card-wrapper">
+            <div class="login-card">
+                <h1 class="login-title">Supply Chain & S&OP Analyzer</h1>
+                <p class="login-subtitle">Grupo Induwell - Cadena de Suministros</p>
+                
+                <div class="login-desc">
+                    <p>Bienvenido al portal de análisis operativo y control S&OP. Esta herramienta consolida:</p>
+                    <ul>
+                        <li><strong style="color: var(--neon-cyan);">Nivel de Servicio OTIF:</strong> Monitoreo diario y acumulado de entregas.</li>
+                        <li><strong style="color: var(--neon-green);">Eficacia de Planta:</strong> Cumplimiento real vs planeado de producción.</li>
+                        <li><strong style="color: var(--neon-red);">Triage de Riesgos:</strong> Detección de quiebres futuros proyectados.</li>
+                        <li><strong style="color: var(--ai-purple);">Asistente de IA:</strong> Análisis clínico automático mediante Gemini.</li>
+                    </ul>
+                </div>
+                
+                <form id="login-form" class="login-form" autocomplete="on">
+                    <div class="login-input-group">
+                        <label for="login-username">Usuario</label>
+                        <input type="text" id="login-username" required autocomplete="username" placeholder="Ingresa tu usuario">
+                    </div>
+                    <div class="login-input-group">
+                        <label for="login-password">Contraseña</label>
+                        <input type="password" id="login-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña">
+                    </div>
+                    <div id="login-error-msg" class="login-error-message" style="display: none;">
+                        Usuario o contraseña incorrectos.
+                    </div>
+                    <button type="submit" class="btn btn-primary login-btn">Iniciar Sesión</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ETAPA 2: LAUNCHER / SELECCIÓN DE ENTORNO DE TRABAJO (SPLIT LAYOUT) -->
+        <div id="workspace-container" class="workspace-selection-layout" style="display: none;">
+            
+            <!-- Columna Izquierda (Informativa, Fondo Oscuro) -->
+            <div class="workspace-info-col" style="gap: 16px; justify-content: flex-start; padding: 40px 36px; overflow-y: auto;">
+                <div class="sop-hub-badge">
+                    <div class="sop-badge-icon">
+                        <i data-lucide="layout-grid"></i>
+                    </div>
+                    <span>S&OP Control Hub</span>
+                </div>
+                
+                <h1 class="workspace-col-title" style="font-size: 26px; margin-bottom: 5px;">Supply Chain & S&OP Analyzer</h1>
+                
+                <div class="workspace-summary-details" style="display: flex; flex-direction: column; gap: 14px;">
+                    <div>
+                        <span style="font-size: 10.5px; font-weight: 700; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">¿Qué hace esta aplicación?</span>
+                        <p style="font-size: 11.5px; color: #cbd3cc; line-height: 1.4; margin: 0;">
+                            Es un centro de diagnóstico y control operativo en tiempo real. Consolida la planeación comercial con la capacidad física de las plantas para sincronizar toda la cadena de suministro.
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <span style="font-size: 10.5px; font-weight: 700; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">¿Qué compara y analiza?</span>
+                        <p style="font-size: 11.5px; color: #cbd3cc; line-height: 1.4; margin: 0;">
+                            <strong>Demanda vs. Embarques:</strong> Contrasta el volumen solicitado en órdenes de venta con lo embarcado.<br>
+                            <strong>Plan vs. Real de Producción:</strong> Evalúa el cumplimiento exacto del plan semanal por SKU en planta, penalizando producciones no planificadas.
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <span style="font-size: 10.5px; font-weight: 700; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">KPIs de Control Estratégico</span>
+                        <ul class="workspace-bullets" style="margin-top: 5px; gap: 6px;">
+                            <li>
+                                <strong style="color: #ffffff;">OTIF (Nivel de Servicio):</strong> Órdenes entregadas a tiempo y completas.
+                            </li>
+                            <li>
+                                <strong style="color: #ffffff;">Eficacia de Planta (Capped):</strong> Cumplimiento estricto del plan semanal.
+                            </li>
+                            <li>
+                                <strong style="color: #ffffff;">Alertas de Quiebre (Triage):</strong> Detección de SKUs con proyecciones de inventario negativo.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="font-size: 10px; color: #cbd3cc; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; margin-top: 10px;">
+                    <i data-lucide="shield" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: var(--neon-cyan);"></i>
+                    <span>Acceso restringido y aislado por sociedad de forma segura.</span>
+                </div>
+            </div>
+            
+            <!-- Columna Derecha (Listado de Sociedades, Fondo Claro) -->
+            <div class="workspace-list-col">
+                <h2 class="workspace-list-title">Empresas Disponibles</h2>
+                <p class="workspace-list-subtitle">Haz clic en una sociedad para ingresar.</p>
+                
+                <div id="workspace-cards-list" class="workspace-cards-list">
+                    <!-- Sociedades dinámicas basadas en los permisos del usuario -->
+                </div>
+                
+                <div class="workspace-footer-links">
+                    <button id="workspace-add-company-btn" class="btn btn-outline" style="display: none; font-size: 11px; padding: 6px 12px; gap: 4px; align-items: center; border-style: dashed;">
+                        <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Añadir Nueva Empresa
+                    </button>
+                    <button id="workspace-logout-btn" class="workspace-logout-link-btn">
+                        Cerrar Sesión Segura
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+
+    <div class="app-container" style="display: none;">
+        
+        <!-- CONTENIDO PRINCIPAL (DASHBOARD) -->
+        <main class="main-content">
+            
+            <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+            <header class="top-navbar">
+                <div class="logo-section">
+                    <span class="logo-text">GRUPO INDUWELL</span>
+                    <span class="logo-dot"></span>
+                    <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">CDS LOGÍSTICA & S&OP</span>
+                </div>
+                <nav class="nav-links">
+                    <div class="nav-item active">Ubicación: <span class="highlight">Global</span></div>
+                    <div class="nav-item" style="display: flex; align-items: center; gap: 6px;">
+                        Semana: 
+                        <select id="week-selector" class="week-dropdown-select">
+                            <option value="">Cargando...</option>
+                        </select>
+                    </div>
+                    <div class="nav-item">Días Hábiles: <span class="highlight">6 días (Vie-Jue)</span></div>
+                </nav>
+                <div class="top-actions">
+                    <button id="admin-panel-btn" class="btn btn-outline" style="display: none; border-color: var(--ai-purple); color: var(--ai-purple); margin-right: 8px;">
+                        <i data-lucide="shield" style="width: 14px; height: 14px;"></i>
+                        Panel Admin
+                    </button>
+                    <div id="user-display-area" style="display: flex; align-items: center; gap: 8px; margin-right: 8px; font-size: 12px; color: var(--text-secondary);">
+                        <span id="user-display-name" style="font-weight: 600; color: var(--text-primary);">--</span>
+                        <button id="logout-btn" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-color: var(--neon-red); color: var(--neon-red);">
+                            Salir
+                        </button>
+                    </div>
+                    <button id="refresh-btn" class="btn btn-outline" style="border-color: rgba(26, 115, 232, 0.25); color: var(--neon-cyan);">
+                        <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                        Sincronizar Sheet
+                    </button>
+                    <div class="update-badge" style="font-size: 11px; color: var(--text-secondary);">
+                        Última carga: <strong id="last-update-time" style="color: var(--text-primary);">--:--</strong>
+                    </div>
+                </div>
+            </header>
+
+            <!-- FILTRO DE SUBSIDIARIA SUPERIOR -->
+            <div class="subsidiary-filter-wrapper">
+                <div id="subsidiary-segment-control" class="segment-control">
+                    <!-- Cargado dinámicamente según permisos -->
+                </div>
+            </div>
+
+            <!-- PANEL HÉROE PRINCIPAL DE DIAGNÓSTICO S&OP -->
+            <section class="sop-hero-panel">
+                <div class="hero-title-area">
+                    <h2 id="hero-title">Gestión y Triage de Desviaciones S&OP</h2>
+                    <p id="hero-desc">Monitoreo quirúrgico de nivel de servicio OTIF y cumplimiento del plan de producción diaria para Alphalab y Velaluz.</p>
+                </div>
+                
+                <!-- Medidor Circular 1: OTIF Semanal -->
+                <div class="gauge-container">
+                    <div class="gauge-circle otif-ring">
+                        <svg>
+                            <circle class="bg-ring" cx="30" cy="30" r="27.5"></circle>
+                            <circle id="otif-fill-ring" class="fill-ring" cx="30" cy="30" r="27.5"></circle>
+                        </svg>
+                        <div id="otif-gauge-val" class="gauge-value">0%</div>
+                    </div>
+                    <div class="gauge-info">
+                        <span class="gauge-label" id="otif-gauge-label">OTIF Acumulado</span>
+                        <span class="gauge-desc" id="otif-gauge-desc">Órdenes de venta a tiempo y en full</span>
+                        <span class="gauge-ytd warning-ytd" id="otif-ytd-val">YTD Anual: --%</span>
+                    </div>
+                </div>
+
+                <!-- Medidor Circular 2: Cumplimiento Producción -->
+                <div class="gauge-container">
+                    <div class="gauge-circle prod-ring">
+                        <svg>
+                            <circle class="bg-ring" cx="30" cy="30" r="27.5"></circle>
+                            <circle id="prod-fill-ring" class="fill-ring" cx="30" cy="30" r="27.5"></circle>
+                        </svg>
+                        <div id="prod-gauge-val" class="gauge-value">0%</div>
+                    </div>
+                    <div class="gauge-info">
+                        <span class="gauge-label" id="prod-gauge-label">Cumpl. Producción</span>
+                        <span class="gauge-desc" id="prod-gauge-desc">Avance real vs plan en plantas</span>
+                        <span class="gauge-ytd warning-ytd" id="prod-ytd-val">YTD Anual: --%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TARJETAS DE KPIs SECUNDARIOS CON SPARKLINES -->
+            <section class="kpi-grid">
+                <!-- OTIF SEMANAL CARD -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title" id="kpi-otif-title">Nivel de Servicio (OTIF)</span>
+                            <p class="kpi-desc" id="kpi-otif-desc">Desviación acumulada semana corriente</p>
+                        </div>
+                        <i data-lucide="shield-check" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num-wrapper">
+                            <div class="kpi-num" id="kpi-otif-val">0% <span class="target-val">/ 100%</span></div>
+                            <div class="kpi-subnum" id="kpi-otif-pieces">0 de 0 pzas</div>
+                            <span class="kpi-ytd warning-ytd" id="kpi-otif-ytd">YTD Anual: --%</span>
+                        </div>
+                        <div class="kpi-gauge">
+                            <svg>
+                                <circle class="bg-ring" cx="22" cy="22" r="18"></circle>
+                                <circle class="fill-ring" id="kpi-otif-gauge-fill" cx="22" cy="22" r="18"></circle>
+                            </svg>
+                            <div class="kpi-gauge-value" id="kpi-otif-gauge-val">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUMPLIMIENTO PRODUCCIÓN CARD -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title" id="kpi-prod-title">Eficacia de Planta</span>
+                            <p class="kpi-desc" id="kpi-prod-desc">Entrega física real vs plan semanal</p>
+                        </div>
+                        <i data-lucide="factory" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num-wrapper">
+                            <div class="kpi-num" id="kpi-prod-val">0% <span class="target-val">/ 100%</span></div>
+                            <div class="kpi-subnum" id="kpi-prod-pieces">0 de 0 pzas</div>
+                            <span class="kpi-ytd warning-ytd" id="kpi-prod-ytd">YTD Anual: --%</span>
+                        </div>
+                        <div class="kpi-gauge">
+                            <svg>
+                                <circle class="bg-ring" cx="22" cy="22" r="18"></circle>
+                                <circle class="fill-ring" id="kpi-prod-gauge-fill" cx="22" cy="22" r="18"></circle>
+                            </svg>
+                            <div class="kpi-gauge-value" id="kpi-prod-gauge-val">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIESGOS ACTIVOS CARD -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title">Alertas de Quiebre</span>
+                            <p class="kpi-desc">SKUs proyectados en negativo en inventario futuro</p>
+                        </div>
+                        <i data-lucide="alert-triangle" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num" id="kpi-risks-val">0</div>
+                        <div class="kpi-gauge">
+                            <svg>
+                                <circle class="bg-ring" cx="22" cy="22" r="18"></circle>
+                                <circle class="fill-ring" id="kpi-risks-gauge-fill" cx="22" cy="22" r="18"></circle>
+                            </svg>
+                            <div class="kpi-gauge-value" id="kpi-risks-gauge-val">100%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SKUs MONITOREADOS CARD -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title">Artículos en Control</span>
+                            <p class="kpi-desc">SKUs de Alphalab y Velaluz registrados</p>
+                        </div>
+                        <i data-lucide="package" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num" id="kpi-skus-val">0 <span class="target-val">monitoreados</span></div>
+                        <div class="kpi-gauge">
+                            <svg>
+                                <circle class="bg-ring" cx="22" cy="22" r="18"></circle>
+                                <circle class="fill-ring" id="kpi-skus-gauge-fill" cx="22" cy="22" r="18"></circle>
+                            </svg>
+                            <div class="kpi-gauge-value" id="kpi-skus-gauge-val">100%</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN DE COMENTARIOS DE KPIs -->
+            <section id="comments-kpi-wrapper" class="comment-section kpi-section">
+                <div class="comment-header">
+                    <div class="comment-header-icon">
+                        <i data-lucide="message-square"></i>
+                    </div>
+                    <div class="comment-header-info">
+                        <h4 class="comment-title">Comentarios de Indicadores Clave (KPIs)</h4>
+                        <p class="comment-subtitle">Observaciones sobre el nivel de servicio OTIF y la eficacia de planta.</p>
+                    </div>
+                    <span id="comment-kpi-status" class="comment-status" style="margin-left: auto;">
+                        <span class="comment-status-icon"></span>
+                        <span class="comment-status-text">Sin guardar</span>
+                    </span>
+                </div>
+                <div class="comments-list" id="comments-kpi-list">
+                    <!-- Cargado dinámicamente -->
+                </div>
+                <div class="comment-input-area" id="comment-kpi-input-area">
+                    <textarea id="comment-kpi-text" class="comment-textarea" placeholder="Escribe un comentario..." maxlength="1000"></textarea>
+                    <button id="add-comment-kpi-btn" class="comment-save-btn">
+                        <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Agregar
+                    </button>
+                </div>
+            </section>
+
+            <!-- PANEL DE TRIAGE OPERATIVO (ALERTAS DE RIESGO FUTURO) -->
+            <section class="triage-section">
+                <div class="triage-title" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="triage-pulse"></span>
+                        Triage Operativo: Peticiones de Acción Correctiva (Turnos de Planta)
+                    </div>
+                    <button id="export-triage-btn" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px; border-color: rgba(255, 102, 54, 0.3); color: var(--neon-cyan); gap: 4px; display: inline-flex; align-items: center;">
+                        <i data-lucide="download" style="width: 12px; height: 12px;"></i> Exportar Triage
+                    </button>
+                </div>
+                <div id="triage-list" class="triage-list">
+                    <!-- Cargando alertas de riesgo... -->
+                </div>
+            </section>
+
+            <!-- SECCIÓN DE COMENTARIOS DE TRIAGE -->
+            <section id="comments-triage-wrapper" class="comment-section triage-section-comment">
+                <div class="comment-header">
+                    <div class="comment-header-icon">
+                        <i data-lucide="alert-circle"></i>
+                    </div>
+                    <div class="comment-header-info">
+                        <h4 class="comment-title">Comentarios de Triage Operativo</h4>
+                        <p class="comment-subtitle">Plan de acción, causas raíz y decisiones tomadas sobre riesgos de quiebre.</p>
+                    </div>
+                    <span id="comment-triage-status" class="comment-status" style="margin-left: auto;">
+                        <span class="comment-status-icon"></span>
+                        <span class="comment-status-text">Sin guardar</span>
+                    </span>
+                </div>
+                <div class="comments-list" id="comments-triage-list">
+                    <!-- Cargado dinámicamente -->
+                </div>
+                <div class="comment-input-area" id="comment-triage-input-area">
+                    <textarea id="comment-triage-text" class="comment-textarea" placeholder="Escribe un comentario..." maxlength="1000"></textarea>
+                    <button id="add-comment-triage-btn" class="comment-save-btn">
+                        <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Agregar
+                    </button>
+                </div>
+            </section>
+
+            <!-- SECCIÓN DE GRÁFICOS ANALÍTICOS (CON TÍTULO Y DESCRIPCIÓN) -->
+            <section class="charts-container">
+                <!-- Gráfico de Tendencias -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title" id="trend-chart-title">Gráfica 1: Historial de Desempeño Operativo Diario</span>
+                        <span class="chart-desc" id="trend-chart-desc">Evolución porcentual del OTIF diario (nivel de servicio) contra el cumplimiento de producción en las plantas de Viernes a Jueves.</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="trend-chart"></canvas>
+                    </div>
+                </div>
+                <!-- Gráfico Comparativo de Volumen -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title" id="volume-chart-title">Gráfica 2: Balance de Embarques y Demanda por Subsidiaria</span>
+                        <span class="chart-desc" id="volume-chart-desc">Comparativa del total de volumen de órdenes de venta solicitado contra lo embarcado realmente en la semana en curso (Alphalab vs Velaluz).</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="volume-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <style>
+                /* Estilo inline temporal o directo */
+            </style>
+            <!-- PANEL DE FILTROS E INTERACCIÓN DE TABLA -->
+            <section class="controls-panel">
+                <div class="filters-left" style="width: 100%;">
+                    <div class="search-wrapper" style="width: 100%;">
+                        <i data-lucide="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+                        <input type="text" id="search-input" class="search-input" autocomplete="off" placeholder="Buscar SKU, código o nombre del artículo...">
+                    </div>
+                </div>
+            </section>
+
+            <!-- SELECTOR DE DÍA DE PLANEACIÓN (VIERNES A JUEVES) -->
+            <section id="day-selector-container" class="day-selector">
+                <!-- Generados dinámicamente -->
+            </section>
+
+            <!-- TABLA DE PLANEACIÓN DETALLADA (CON TÍTULO Y DESCRIPCIÓN) -->
+            <section class="grid-container">
+                <div class="table-header-title" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;">
+                    <div>
+                        <h3>Matriz de Datos de Planeación Semanal</h3>
+                        <p id="table-description-text">Mostrando las 12 columnas operativas de inventarios, despachos y producciones del día seleccionado.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button id="clear-filter-btn" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px; border-color: rgba(95, 99, 104, 0.3); color: var(--text-secondary); gap: 4px; display: inline-flex; align-items: center;">
+                            <i data-lucide="x" style="width: 12px; height: 12px;"></i> Limpiar Filtro
+                        </button>
+                        <button id="export-matrix-btn" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px; border-color: rgba(255, 102, 54, 0.3); color: var(--neon-cyan); gap: 4px; display: inline-flex; align-items: center;">
+                            <i data-lucide="download" style="width: 12px; height: 12px;"></i> Exportar Matriz
+                        </button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr id="table-header-row">
+                                <!-- Encabezados dinámicos -->
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Cargando registros... -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SECCIÓN DE COMENTARIOS DE MATRIZ -->
+            <section id="comments-matrix-wrapper" class="comment-section matrix-section">
+                <div class="comment-header">
+                    <div class="comment-header-icon">
+                        <i data-lucide="trending-up"></i>
+                    </div>
+                    <div class="comment-header-info">
+                        <h4 class="comment-title">Comentarios de Matriz de Planeación Semanal</h4>
+                        <p class="comment-subtitle">Notas generales de planeación, justificaciones de variación y comentarios de volumen.</p>
+                    </div>
+                    <span id="comment-matrix-status" class="comment-status" style="margin-left: auto;">
+                        <span class="comment-status-icon"></span>
+                        <span class="comment-status-text">Sin guardar</span>
+                    </span>
+                </div>
+                <div class="comments-list" id="comments-matrix-list">
+                    <!-- Cargado dinámicamente -->
+                </div>
+                <div class="comment-input-area" id="comment-matrix-input-area">
+                    <textarea id="comment-matrix-text" class="comment-textarea" placeholder="Escribe un comentario..." maxlength="1000"></textarea>
+                    <button id="add-comment-matrix-btn" class="comment-save-btn">
+                        <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Agregar
+                    </button>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- BARRA LATERAL (ANALISTA CLÍNICO DE IA) -->
+        <aside class="sidebar">
+            <!-- Botón Toggle Flotante (Flecha) para colapsar la barra lateral -->
+            <button id="sidebar-toggle" class="sidebar-toggle-btn" title="Ocultar/Mostrar Analista de IA">
+                <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+            </button>
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <i data-lucide="bot" style="width: 16px; height: 16px;"></i>
+                    Analista Clínico S&OP
+                </div>
+                <div style="font-size: 10px; color: var(--neon-green); font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                    <span style="width: 5px; height: 5px; background: var(--neon-green); border-radius: 50%; display: inline-block;"></span>
+                    Online
+                </div>
+            </div>
+
+            <!-- Ajustes de la Llave API (Colapsable) -->
+            <div class="api-settings">
+                <div id="api-settings-header" class="api-settings-header">
+                    <span>Configuración Gemini API Key</span>
+                    <span id="api-settings-arrow">&#9662;</span>
+                </div>
+                <div id="api-settings-body" class="api-settings-body" style="display: none;">
+                    <div class="api-settings-body-content" style="padding-top: 8px;">
+                        <div class="input-group">
+                            <label for="api-key-input">Gemini API Key</label>
+                            <input type="password" id="api-key-input" class="key-input" autocomplete="new-password" placeholder="AIzaSy...">
+                            <button id="save-key-btn" class="btn btn-outline" style="margin-top: 6px; width: 100%; font-size: 11px; padding: 5px;">
+                                Guardar Llave
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feed de Mensajes -->
+            <div id="chat-feed" class="chat-feed">
+                <!-- Estado Inicial Vacío -->
+                <div class="chat-empty-state" style="text-align: center; padding: 30px 10px; color: var(--text-secondary);">
+                    <i data-lucide="sparkles" style="width: 32px; height: 32px; color: var(--neon-green); margin-bottom: 12px; opacity: 0.8;"></i>
+                    <p style="font-weight: 700; margin-bottom: 6px; color: white; font-size: 13px; text-transform: uppercase;">Diagnóstico Clínico Activo</p>
+                    <p style="font-size: 11px; line-height: 1.5; color: var(--text-secondary);">El Analista Clínico de IA está listo. Configura tu API Key de Gemini y haz clic en los botones de acción para iniciar un diagnóstico quirúrgico de los datos.</p>
+                </div>
+            </div>
+
+            <!-- Acciones y Consulta Personalizada -->
+            <div class="sidebar-actions">
+                <button id="btn-triage-diario" class="btn btn-outline" style="border-color: rgba(217, 48, 37, 0.25); color: var(--neon-red); text-align: left; justify-content: flex-start;">
+                    <i data-lucide="alert-octagon" style="width: 14px; height: 14px; color: var(--neon-red);"></i>
+                    Triage de Emergencia (Nivel 1)
+                </button>
+                <button id="btn-diag-clinico" class="btn btn-ai" style="text-align: left; justify-content: flex-start;">
+                    <i data-lucide="stethoscope" style="width: 14px; height: 14px;"></i>
+                    Diagnóstico Completo (Nivel 1-3)
+                </button>
+                <button id="btn-resumen-semanal" class="btn btn-outline" style="border-color: rgba(26, 115, 232, 0.25); color: var(--neon-cyan); text-align: left; justify-content: flex-start;">
+                    <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--neon-cyan);"></i>
+                    Wrap-Up Semanal (Nivel 3)
+                </button>
+ 
+                <form id="custom-query-form" class="custom-query-form" autocomplete="off">
+                    <input type="text" id="query-input" class="query-input" autocomplete="off" placeholder="Pregunta sobre la planeación...">
+                    <button type="submit" class="btn btn-primary btn-icon">
+                        <i data-lucide="send" style="width: 14px; height: 14px;"></i>
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- MODAL DE ADMINISTRACION (SUPABASE) -->
+    <div id="admin-panel-modal" class="admin-modal-overlay" style="display: none;">
+        <div class="admin-modal-content">
+            <div class="admin-modal-header">
+                <h2>Panel de Administración de Usuarios y Permisos</h2>
+                <button id="close-admin-modal-btn" class="admin-modal-close-btn">&times;</button>
+            </div>
+            
+            <div class="admin-modal-tabs">
+                <button class="admin-tab-btn active" data-tab="tab-usuarios">Gestión de Usuarios</button>
+                <button class="admin-tab-btn" data-tab="tab-empresas">Catálogo de Empresas</button>
+            </div>
+            
+            <!-- PESTAÑA: USUARIOS -->
+            <div id="tab-usuarios" class="admin-tab-content">
+                <div class="admin-split-layout">
+                    <!-- Formulario Crear Usuario -->
+                    <div class="admin-form-container">
+                        <h3>Crear Nuevo Usuario</h3>
+                        <form id="admin-create-user-form">
+                            <div class="login-input-group">
+                                <label for="admin-new-username">Nombre de Usuario</label>
+                                <input type="text" id="admin-new-username" required autocomplete="username" placeholder="ej: javier.lopez">
+                            </div>
+                            <div class="login-input-group">
+                                <label for="admin-new-password">Contraseña Inicial</label>
+                                <input type="password" id="admin-new-password" required autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+                            </div>
+                            <div class="login-input-group">
+                                <label for="admin-new-role">Rol del Sistema</label>
+                                <select id="admin-new-role" class="week-dropdown-select" style="width: 100%; height: 36px; padding: 6px; box-sizing: border-box; background-color: white;">
+                                    <option value="admin">Director CDS (Acceso Total)</option>
+                                    <option value="gerente">Gerente CDS (Acceso Operativo)</option>
+                                    <option value="visor">Visor (Lectura y Descarga)</option>
+                                </select>
+                            </div>
+                            <div class="login-input-group">
+                                <label>Empresas Autorizadas</label>
+                                <div id="admin-company-checkboxes" class="checkbox-group-container">
+                                    <!-- Generado dinámicamente -->
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Crear Usuario</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Tabla de Usuarios -->
+                    <div class="admin-table-container">
+                        <h3>Usuarios Registrados</h3>
+                        <div class="admin-table-wrapper">
+                            <table class="admin-data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Rol</th>
+                                        <th>Empresas</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-table-body">
+                                    <!-- Usuarios dinámicos de Supabase -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PESTAÑA: EMPRESAS -->
+            <div id="tab-empresas" class="admin-tab-content" style="display: none;">
+                <div class="admin-split-layout">
+                    <!-- Formulario Crear Empresa -->
+                    <div class="admin-form-container">
+                        <h3>Registrar Nueva Empresa</h3>
+                        <form id="admin-create-company-form">
+                            <div class="login-input-group">
+                                <label for="admin-new-company">Nombre de la Empresa</label>
+                                <input type="text" id="admin-new-company" required autocomplete="off" placeholder="ej: INDUWELL">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Añadir Empresa</button>
+                        </form>
+                        <div style="margin-top: 15px; font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                            <strong>Nota:</strong> Al procesar archivos de Google Sheets, si el sistema detecta una nueva subsidiaria que no esté en este catálogo, se registrará de forma automática en Supabase.
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de Empresas -->
+                    <div class="admin-table-container">
+                        <h3>Catálogo de Empresas Activas</h3>
+                        <div class="admin-table-wrapper">
+                            <table class="admin-data-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre de Empresa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-companies-table-body">
+                                    <!-- Empresas dinámicas de Supabase -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts de la Aplicación -->
+    <script src="app.js?v=6"></script>
+    <script>
+        // Inicializar iconos de Lucide
+        lucide.createIcons();
+    </script>
+</body>
+</html>

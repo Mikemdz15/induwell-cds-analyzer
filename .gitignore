@@ -1,0 +1,15 @@
+# Carpetas temporales y de logs
+scratch/
+.agents/
+
+# Archivos temporales de Office/Excel
+~$*.xlsx
+~$*.xls
+
+# Archivos de datos de prueba o vacíos
+live_data.xlsx
+live_data_test.xlsx
+
+# Configuraciones locales de sistema
+.DS_Store
+Thumbs.db
