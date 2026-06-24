@@ -42,6 +42,9 @@ const PLAN_DAY_NAMES = ["Viernes", "Sábado", "Lunes", "Martes", "Miércoles", "
 let trendChart = null;
 let volumeChart = null;
 
+// Mapa de precios de venta (cargado desde la hoja 'Informacion')
+let productPrices = {};
+
 // Inicialización de la aplicación
 document.addEventListener("DOMContentLoaded", () => {
     if (window.location.protocol === "file:") {
@@ -299,6 +302,7 @@ async function loadDashboardData() {
         // Cargar archivo usando SheetJS
         const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true, cellNF: true, cellText: true });
         currentWorkbook = workbook;
+        parseInformacionSheet(workbook);
         
         // Filtrar las hojas que contienen la planeación de la semana (ej. "sem" o "semana")
         appData.weeks = workbook.SheetNames.filter(name => {
@@ -365,6 +369,7 @@ async function loadFallbackLocalData() {
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
         currentWorkbook = workbook;
+        parseInformacionSheet(workbook);
         
         appData.weeks = workbook.SheetNames.filter(name => {
             const lower = name.toLowerCase();
@@ -429,6 +434,45 @@ function getCellText(sheet, colIndex, rowIndex, defaultVal = "") {
     const cell = sheet[cellRef];
     if (!cell) return defaultVal;
     return cell.w || (cell.v !== undefined ? String(cell.v) : defaultVal);
+}
+
+// Procesar la hoja de Informacion de productos y precios
+function parseInformacionSheet(workbook) {
+    productPrices = {};
+    if (!workbook) return;
+    
+    const infoSheetName = Object.keys(workbook.Sheets).find(k => k.toLowerCase() === "informacion");
+    if (!infoSheetName) {
+        console.warn("Hoja 'Informacion' no encontrada en el libro.");
+        return;
+    }
+    
+    const sheet = workbook.Sheets[infoSheetName];
+    const ref = sheet['!ref'];
+    if (!ref) return;
+    const range = XLSX.utils.decode_range(ref);
+    const maxRow = range.e.r + 1;
+    
+    // Las columnas de la hoja 'Informacion' son:
+    // A (0): SUBSUDIARIA, B (1): SKU NETO, C (2): SKU INTERNO, D (3): NOMBRE DEL ARTICULO, E (4): Categoria, F (5): Precio de Venta
+    for (let r = 2; r <= maxRow; r++) {
+        const sub = getCellText(sheet, 0, r, "").toUpperCase().trim();
+        const skuNeto = getCellText(sheet, 1, r, "").trim();
+        const skuInterno = getCellText(sheet, 2, r, "").toUpperCase().trim();
+        const precioVal = getCellValue(sheet, 5, r, 0);
+        const precio = typeof precioVal === 'number' ? precioVal : parseFloat(String(precioVal).replace(/[^0-9.]/g, '')) || 0;
+        
+        if (sub) {
+            if (skuInterno) {
+                productPrices[`${sub}_${skuInterno}`] = precio;
+            }
+            if (skuNeto) {
+                const cleanNeto = skuNeto.split('.')[0];
+                productPrices[`${sub}_${cleanNeto}`] = precio;
+            }
+        }
+    }
+    console.log(`Precios cargados para ${Object.keys(productPrices).length} combinaciones de productos.`);
 }
 
 // Procesar el contenido de la hoja
@@ -537,12 +581,20 @@ function parseSheetData(sheet) {
         const rawCategory = getCellText(sheet, 76, r, "General").trim();
         const category = rawCategory === "None" || rawCategory === "" ? "General" : rawCategory;
         
+        const cleanNetoLookup = sku_neto.trim().split('.')[0];
+        const lookupKeyInt = `${formattedSub}_${sku_interno.toUpperCase().trim()}`;
+        const lookupKeyNet = `${formattedSub}_${cleanNetoLookup}`;
+        const price = productPrices[lookupKeyInt] !== undefined 
+            ? productPrices[lookupKeyInt] 
+            : (productPrices[lookupKeyNet] !== undefined ? productPrices[lookupKeyNet] : 0);
+        
         appData.skus.push({
             subsidiary: formattedSub,
             sku_neto,
             sku_interno,
             name,
             category: category,
+            price: price,
             days: skuDays
         });
     }
@@ -991,6 +1043,54 @@ function recalculateWeeklyKPIs() {
 
     updateCircularGauge("kpi-risks-gauge-fill", "kpi-risks-gauge-val", healthPct);
     updateCircularGauge("kpi-skus-gauge-fill", "kpi-skus-gauge-val", 100);
+
+    // ----------------------------------------------------------------------
+    // Calcular Valores Financieros de Ventas S&OP
+    // ----------------------------------------------------------------------
+    let finSolicitado = 0;
+    let finEmbarcado = 0;
+    let finPorAtender = 0;
+
+    if (!isSummary) {
+        // Calcular para el día seleccionado
+        const dayIdx = appData.selectedDayIndex;
+        appData.filteredSkus.forEach(sku => {
+            const day = sku.days[dayIdx];
+            const price = sku.price || 0;
+            finSolicitado += day.requested_ov * price;
+            finEmbarcado += day.shipped_curr_week * price;
+            finPorAtender += Math.max(0, day.requested_ov - day.shipped_curr_week) * price;
+        });
+    } else {
+        // Calcular para toda la semana
+        appData.filteredSkus.forEach(sku => {
+            const price = sku.price || 0;
+            sku.days.forEach(day => {
+                finSolicitado += day.requested_ov * price;
+                finEmbarcado += day.shipped_curr_week * price;
+                finPorAtender += Math.max(0, day.requested_ov - day.shipped_curr_week) * price;
+            });
+        });
+    }
+
+    // Actualizar elementos DOM de la tarjeta financiera
+    const finSolicitadoEl = document.getElementById("kpi-fin-solicitado");
+    const finEmbarcadoEl = document.getElementById("kpi-fin-embarcado");
+    const finPorAtenderEl = document.getElementById("kpi-fin-por-atender");
+    const finDescEl = document.querySelector(".financial-card .kpi-desc");
+
+    if (finSolicitadoEl) {
+        finSolicitadoEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(finSolicitado);
+    }
+    if (finEmbarcadoEl) {
+        finEmbarcadoEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(finEmbarcado);
+    }
+    if (finPorAtenderEl) {
+        finPorAtenderEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(finPorAtender);
+    }
+    if (finDescEl) {
+        finDescEl.textContent = isSummary ? "Resumen semanal en dinero" : "Resumen diario en dinero";
+    }
 
     // Calcular acumulados anuales (YTD) a partir de semana 22
     const ytd = calculateYTDMetrics();
