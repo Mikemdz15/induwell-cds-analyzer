@@ -924,12 +924,12 @@ function recalculateWeeklyKPIs() {
         document.getElementById("kpi-otif-title").textContent = `OTIF - ${dayName}`;
         document.getElementById("kpi-otif-desc").textContent = `Desempeño diario de entregas`;
         document.getElementById("kpi-otif-val").innerHTML = `${otifDayVal.toFixed(1)}% <span class="target-val">/ 100%</span>`;
-        document.getElementById("kpi-otif-pieces").textContent = `${totalShippedCurr.toLocaleString('es-MX')} de ${totalRequested.toLocaleString('es-MX')} pzas`;
+        document.getElementById("kpi-otif-pieces").textContent = `${totalShippedCurr.toLocaleString('es-MX')} de ${totalRequested.toLocaleString('es-MX')} cajas`;
         
         document.getElementById("kpi-prod-title").textContent = `Cumpl. Prod - ${dayName}`;
         document.getElementById("kpi-prod-desc").textContent = `Cumplimiento de planta diario`;
         document.getElementById("kpi-prod-val").innerHTML = `${prodDayVal.toFixed(1)}% <span class="target-val">/ 100%</span>`;
-        document.getElementById("kpi-prod-pieces").textContent = `${totalProdReal.toLocaleString('es-MX')} de ${totalProdPlan.toLocaleString('es-MX')} pzas`;
+        document.getElementById("kpi-prod-pieces").textContent = `${totalProdReal.toLocaleString('es-MX')} de ${totalProdPlan.toLocaleString('es-MX')} cajas`;
         
         document.getElementById("hero-title").textContent = `Diagnóstico Diario: ${dayName} ${dateStr}`;
         document.getElementById("hero-desc").textContent = `Análisis focalizado de la planeación y abasto para el día ${dayName}. Cambia al Resumen Semanal para ver el acumulado general.`;
@@ -959,12 +959,12 @@ function recalculateWeeklyKPIs() {
         document.getElementById("kpi-otif-title").textContent = "Nivel de Servicio (OTIF)";
         document.getElementById("kpi-otif-desc").textContent = "Desviación acumulada semana corriente";
         document.getElementById("kpi-otif-val").innerHTML = `${otifWeekVal.toFixed(1)}% <span class="target-val">/ 100%</span>`;
-        document.getElementById("kpi-otif-pieces").textContent = `${totalShippedCurr.toLocaleString('es-MX')} de ${totalRequested.toLocaleString('es-MX')} pzas`;
+        document.getElementById("kpi-otif-pieces").textContent = `${totalShippedCurr.toLocaleString('es-MX')} de ${totalRequested.toLocaleString('es-MX')} cajas`;
         
         document.getElementById("kpi-prod-title").textContent = "Eficacia de Planta";
         document.getElementById("kpi-prod-desc").textContent = "Entrega física real vs plan semanal";
         document.getElementById("kpi-prod-val").innerHTML = `${prodWeekVal.toFixed(1)}% <span class="target-val">/ 100%</span>`;
-        document.getElementById("kpi-prod-pieces").textContent = `${totalProdReal.toLocaleString('es-MX')} de ${totalProdPlan.toLocaleString('es-MX')} pzas`;
+        document.getElementById("kpi-prod-pieces").textContent = `${totalProdReal.toLocaleString('es-MX')} de ${totalProdPlan.toLocaleString('es-MX')} cajas`;
         
         document.getElementById("hero-title").textContent = "Gestión y Triage de Desviaciones S&OP";
         document.getElementById("hero-desc").textContent = "Monitoreo quirúrgico de nivel de servicio OTIF y cumplimiento del plan de producción diaria para Alphalab y Velaluz.";
@@ -1666,7 +1666,7 @@ function renderCharts() {
                                 label += ': ';
                             }
                             if (context.parsed.y !== null) {
-                                label += Math.round(context.parsed.y).toLocaleString('es-MX') + ' pzas';
+                                label += Math.round(context.parsed.y).toLocaleString('es-MX') + ' cajas';
                             }
                             
                             return [
@@ -1782,7 +1782,7 @@ function renderCharts() {
                                 label += ': ';
                             }
                             if (context.parsed.y !== null) {
-                                label += Math.round(context.parsed.y).toLocaleString('es-MX') + ' pzas';
+                                label += Math.round(context.parsed.y).toLocaleString('es-MX') + ' cajas';
                             }
                             
                             return [
