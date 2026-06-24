@@ -454,21 +454,30 @@ function parseInformacionSheet(workbook) {
     const maxRow = range.e.r + 1;
     
     // Las columnas de la hoja 'Informacion' son:
-    // A (0): SUBSUDIARIA, B (1): SKU NETO, C (2): SKU INTERNO, D (3): NOMBRE DEL ARTICULO, E (4): Categoria, F (5): Precio de Venta
+    // A (0): SUBSUDIARIA, B (1): SKU NETO, C (2): SKU INTERNO, D (3): NOMBRE DEL ARTICULO, E (4): Categoria, F (5): Precio de Venta (Pza), G (6): Pzas por caja
     for (let r = 2; r <= maxRow; r++) {
         const sub = getCellText(sheet, 0, r, "").toUpperCase().trim();
         const skuNeto = getCellText(sheet, 1, r, "").trim();
         const skuInterno = getCellText(sheet, 2, r, "").toUpperCase().trim();
-        const precioVal = getCellValue(sheet, 5, r, 0);
-        const precio = typeof precioVal === 'number' ? precioVal : parseFloat(String(precioVal).replace(/[^0-9.]/g, '')) || 0;
+        
+        // Leer Precio de Venta (por pieza)
+        const precioPiezaVal = getCellValue(sheet, 5, r, 0);
+        const precioPieza = typeof precioPiezaVal === 'number' ? precioPiezaVal : parseFloat(String(precioPiezaVal).replace(/[^0-9.]/g, '')) || 0;
+        
+        // Leer Pzas por caja
+        const pzasPorCajaVal = getCellValue(sheet, 6, r, 1);
+        const pzasPorCaja = (typeof pzasPorCajaVal === 'number' && pzasPorCajaVal > 0) ? pzasPorCajaVal : (parseFloat(String(pzasPorCajaVal).replace(/[^0-9.]/g, '')) || 1);
+        
+        // Precio por caja = precio de pieza * pzas por caja
+        const precioCaja = precioPieza * pzasPorCaja;
         
         if (sub) {
             if (skuInterno) {
-                productPrices[`${sub}_${skuInterno}`] = precio;
+                productPrices[`${sub}_${skuInterno}`] = precioCaja;
             }
             if (skuNeto) {
                 const cleanNeto = skuNeto.split('.')[0];
-                productPrices[`${sub}_${cleanNeto}`] = precio;
+                productPrices[`${sub}_${cleanNeto}`] = precioCaja;
             }
         }
     }
