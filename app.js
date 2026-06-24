@@ -1071,14 +1071,21 @@ function recalculateWeeklyKPIs() {
             finPorAtender += Math.max(0, day.requested_ov - day.shipped_curr_week) * price;
         });
     } else {
-        // Calcular para toda la semana
+        // Calcular para toda la semana (a nivel consolidado semanal por SKU)
         appData.filteredSkus.forEach(sku => {
             const price = sku.price || 0;
+            let skuWeeklyReq = 0;
+            let skuWeeklyShip = 0;
+            
             sku.days.forEach(day => {
-                finSolicitado += day.requested_ov * price;
-                finEmbarcado += day.shipped_curr_week * price;
-                finPorAtender += Math.max(0, day.requested_ov - day.shipped_curr_week) * price;
+                skuWeeklyReq += day.requested_ov;
+                skuWeeklyShip += day.shipped_curr_week;
             });
+            
+            finSolicitado += skuWeeklyReq * price;
+            finEmbarcado += skuWeeklyShip * price;
+            // A nivel semanal, solo hay "por atender" si el acumulado semanal solicitado supera lo entregado
+            finPorAtender += Math.max(0, skuWeeklyReq - skuWeeklyShip) * price;
         });
     }
 
@@ -1086,7 +1093,7 @@ function recalculateWeeklyKPIs() {
     const finSolicitadoEl = document.getElementById("kpi-fin-solicitado");
     const finEmbarcadoEl = document.getElementById("kpi-fin-embarcado");
     const finPorAtenderEl = document.getElementById("kpi-fin-por-atender");
-    const finDescEl = document.querySelector(".financial-card .kpi-desc");
+    const finDescEl = document.querySelector(".financial-gauge .gauge-desc");
 
     if (finSolicitadoEl) {
         finSolicitadoEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(finSolicitado);
