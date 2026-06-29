@@ -4280,17 +4280,17 @@ function renderABCOperations() {
         const totalIsAlert = totalVarPct < -30;
         
         tableHtml += `
-            <tr style="font-weight: 700; background-color: rgba(32, 33, 36, 0.05); border-top: 2px solid var(--border-color); position: sticky; bottom: 0; z-index: 5;">
-                <td colspan="2" style="text-align: left; font-weight: 700;">TOTALES</td>
-                <td class="num-val">-</td>
-                <td class="num-val">${totalHistCajas.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                <td class="num-val">${Math.round(totalHistPzas).toLocaleString('es-MX')}</td>
-                <td class="num-val">$${totalHistDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td class="num-val" style="font-weight: 700;">${totalActCajas.toLocaleString('es-MX')}</td>
-                <td class="num-val" style="font-weight: 700;">${Math.round(totalActPzas).toLocaleString('es-MX')}</td>
-                <td class="num-val" style="font-weight: 700;">$${totalActDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td class="num-val" style="color: ${totalVarColor}; font-weight: 700;">${totalVarSign}${totalVarPct.toFixed(1)}%</td>
-                <td>
+            <tr style="font-weight: 700; border-top: 2px solid var(--border-color); position: sticky; bottom: 0; z-index: 5;">
+                <td colspan="2" style="text-align: left; font-weight: 700; background-color: var(--bg-card-hover) !important;">TOTALES</td>
+                <td class="num-val" style="background-color: var(--bg-card-hover) !important;">-</td>
+                <td class="num-val" style="background-color: var(--bg-card-hover) !important;">${totalHistCajas.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+                <td class="num-val" style="background-color: var(--bg-card-hover) !important;">${Math.round(totalHistPzas).toLocaleString('es-MX')}</td>
+                <td class="num-val" style="background-color: var(--bg-card-hover) !important;">$${totalHistDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num-val" style="font-weight: 700; background-color: var(--bg-card-hover) !important;">${totalActCajas.toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 700; background-color: var(--bg-card-hover) !important;">${Math.round(totalActPzas).toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 700; background-color: var(--bg-card-hover) !important;">$${totalActDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num-val" style="color: ${totalVarColor}; font-weight: 700; background-color: var(--bg-card-hover) !important;">${totalVarSign}${totalVarPct.toFixed(1)}%</td>
+                <td style="background-color: var(--bg-card-hover) !important;">
                     ${totalIsAlert 
                         ? `<span class="abc-badge-alert">DESVIACIÓN</span>` 
                         : `<span class="abc-badge-ok">Sin desviación</span>`
