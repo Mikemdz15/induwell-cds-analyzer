@@ -533,9 +533,9 @@
                 <div class="abc-details-container">
                     <!-- Tabla de Desviaciones -->
                     <div class="abc-table-container">
-                        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Desviaciones Críticas detectadas en Clase A (Ventas &lt; 75% del promedio)</h4>
+                        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Monitoreo de Desviaciones de Venta y Promedios Históricos (Todos los SKUs)</h4>
                         <p style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.35;">
-                            * El promedio histórico semanal se calcula a partir del volumen de ventas solicitado (en cajas) de las últimas 8 semanas (o todas las semanas disponibles en el archivo si son menos de 8).
+                            * El promedio histórico semanal se calcula a partir del volumen de ventas solicitado de las últimas 8 semanas (o todas las semanas disponibles en el archivo si son menos de 8). Estatus "Desviación" se activa si lo solicitado en la semana es menor al promedio por más del 30%.
                         </p>
                         <div class="table-wrapper" style="max-height: 250px; overflow-y: auto;">
                             <table class="data-table" style="font-size: 11px;">
@@ -545,34 +545,20 @@
                                         <th>Artículo</th>
                                         <th>Pzas/Caja</th>
                                         <th>Hist. Prom. (Cajas)</th>
-                                        <th>Ped. Sem. Activa</th>
+                                        <th>Hist. Prom. (Pzas)</th>
+                                        <th>Ped. Sem. Activa (Cajas)</th>
+                                        <th>Ped. Sem. Activa (Pzas)</th>
                                         <th>Var %</th>
                                         <th>Estatus</th>
                                     </tr>
                                 </thead>
                                 <tbody id="abc-alerts-body">
                                     <tr>
-                                        <td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
+                                        <td colspan="9" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
-                    <!-- Panel de Observaciones IA -->
-                    <div class="abc-ia-panel">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-                                <i data-lucide="sparkles" style="width: 14px; height: 14px; color: var(--ai-purple);"></i>
-                                <h4 style="font-size: 12px; font-weight: 700; color: var(--ai-purple); margin: 0;">Observaciones Comerciales IA</h4>
-                            </div>
-                            <div id="abc-ia-text" style="font-size: 11.5px; line-height: 1.45; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
-                                Selecciona una empresa y semana para activar el análisis inteligente de mezcla y desviación comercial.
-                            </div>
-                        </div>
-                        <button id="abc-ia-analyze-btn" class="btn btn-outline" style="font-size: 11px; padding: 6px; border-color: var(--ai-purple); color: var(--ai-purple); width: 100%; margin-top: 10px; gap: 4px; display: flex; align-items: center; justify-content: center;">
-                            <i data-lucide="play" style="width: 12px; height: 12px;"></i> Analizar Mezcla Comercial
-                        </button>
                     </div>
                 </div>
             </section>

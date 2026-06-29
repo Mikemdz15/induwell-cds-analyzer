@@ -3890,45 +3890,49 @@ function renderABCOperations() {
         if (valEl) valEl.textContent = valShare.toFixed(1) + "%";
     });
     
-    // Pintar tabla de desviaciones de Clase A
+    // Pintar tabla de desviaciones para todos los SKUs
     const tbody = document.getElementById("abc-alerts-body");
     if (!tbody) return;
     
     const activeWeek = appData.selectedWeekName;
-    const classASkus = skuList.filter(s => s.class === 'A');
     
     let tableHtml = "";
     let countDeviations = 0;
     
-    classASkus.forEach(sku => {
+    skuList.forEach(sku => {
         const activeReq = sku.weeklyDemands[activeWeek] || 0;
-        const threshold = 0.75 * sku.historicalAverage;
-        const isAlert = activeReq < threshold;
+        const varPct = sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
+        const isAlert = varPct < -30;
         
-        if (isAlert) {
-            countDeviations++;
-            const varPct = sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
-            const varSign = varPct >= 0 ? "+" : "";
-            const varColor = "var(--neon-red)";
-            
-            tableHtml += `
-                <tr>
-                    <td style="font-weight: 600;">${sku.sku_interno}</td>
-                    <td>${sku.name}</td>
-                    <td class="num-val">${sku.pzasPorCaja || 1}</td>
-                    <td class="num-val">${sku.historicalAverage.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                    <td class="num-val" style="font-weight: 600;">${activeReq.toLocaleString('es-MX')}</td>
-                    <td class="num-val" style="color: ${varColor}; font-weight: 600;">${varSign}${varPct.toFixed(1)}%</td>
-                    <td>
-                        <span class="abc-badge-alert">DESVIACIÓN</span>
-                    </td>
-                </tr>
-            `;
-        }
+        countDeviations++;
+        const varSign = varPct >= 0 ? "+" : "";
+        const varColor = isAlert ? "var(--neon-red)" : "var(--neon-green)";
+        const pzasPorCaja = sku.pzasPorCaja || 1;
+        const histPromPzas = Math.round(sku.historicalAverage * pzasPorCaja);
+        const activeReqPzas = Math.round(activeReq * pzasPorCaja);
+        
+        tableHtml += `
+            <tr>
+                <td style="font-weight: 600;">${sku.sku_interno}</td>
+                <td>${sku.name}</td>
+                <td class="num-val">${pzasPorCaja}</td>
+                <td class="num-val">${sku.historicalAverage.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+                <td class="num-val">${histPromPzas.toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 600;">${activeReq.toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 600;">${activeReqPzas.toLocaleString('es-MX')}</td>
+                <td class="num-val" style="color: ${varColor}; font-weight: 600;">${varSign}${varPct.toFixed(1)}%</td>
+                <td>
+                    ${isAlert 
+                        ? `<span class="abc-badge-alert">DESVIACIÓN</span>` 
+                        : `<span class="abc-badge-ok">Sin desviación</span>`
+                    }
+                </td>
+            </tr>
+        `;
     });
     
     if (countDeviations === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin desviaciones críticas de demanda detectadas en Clase A.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin productos para mostrar.</td></tr>`;
     } else {
         tbody.innerHTML = tableHtml;
     }
