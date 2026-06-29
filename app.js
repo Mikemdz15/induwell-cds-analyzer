@@ -322,7 +322,7 @@ function toggleApiSettings(show) {
 async function loadDashboardData() {
     showLoadingState(true);
     try {
-        const response = await fetch(SHEET_URL);
+        const response = await fetch(SHEET_URL + "&t=" + Date.now(), { cache: "no-store" });
         if (!response.ok) {
             throw new Error(`Error al descargar el archivo: HTTP ${response.status}`);
         }
