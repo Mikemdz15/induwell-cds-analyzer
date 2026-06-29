@@ -3359,9 +3359,10 @@ function exportDeviationsToExcel() {
     
     const activeWeek = appData.selectedWeekName;
     const { skuList } = appData.abcClassification;
+    const filteredSkuList = skuList.filter(sku => !sku.sku_interno.toUpperCase().startsWith("TIN"));
     
     // Utilizar la misma ordenación que esté activa en la vista
-    let sortedList = [...skuList];
+    let sortedList = [...filteredSkuList];
     if (appData.deviationsSortKey) {
         sortedList.sort((a, b) => {
             let valA = getDeviationsSortValue(a, appData.deviationsSortKey);
@@ -4193,12 +4194,13 @@ function renderABCOperations() {
     if (!tbody) return;
     
     const activeWeek = appData.selectedWeekName;
+    const filteredSkuList = skuList.filter(sku => !sku.sku_interno.toUpperCase().startsWith("TIN"));
     
     let tableHtml = "";
     let countDeviations = 0;
     
     // Copiar y ordenar lista de SKUs
-    let sortedList = [...skuList];
+    let sortedList = [...filteredSkuList];
     if (appData.deviationsSortKey) {
         sortedList.sort((a, b) => {
             let valA = getDeviationsSortValue(a, appData.deviationsSortKey);
