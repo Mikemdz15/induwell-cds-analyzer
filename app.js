@@ -16,8 +16,10 @@ let appData = {
     selectedDayIndex: 6, // 0 = Viernes, 1 = Sábado, 2 = Lunes, 3 = Martes, 4 = Miércoles, 5 = Jueves, 6 = Resumen Semanal
     selectedSubsidiary: "ALPHALAB", // "ALPHALAB", "VELALUZ"
     searchQuery: "",
-    sortKey: "", // Columna activa por la que se ordena
+    sortKey: "", // Columna activa por la que se ordena la matriz
     sortDirection: "asc", // "asc" o "desc"
+    deviationsSortKey: "", // Columna activa por la que se ordena la tabla de desviaciones
+    deviationsSortDirection: "desc", // "asc" o "desc"
     kpis: {
         otifSemanal: 0,
         prodSemanal: 0,
@@ -264,11 +266,21 @@ function initUI() {
         });
     }
 
-    // Botón de Análisis de Mezcla Comercial con IA
-    const abcAnalyzeBtn = document.getElementById("abc-ia-analyze-btn");
-    if (abcAnalyzeBtn) {
-        abcAnalyzeBtn.addEventListener("click", () => {
-            analyzeAbcMixWithGemini();
+    // Botón de Exportar Reporte de Desviaciones a Excel
+    const exportDeviationsBtn = document.getElementById("export-deviations-btn");
+    if (exportDeviationsBtn) {
+        exportDeviationsBtn.addEventListener("click", exportDeviationsToExcel);
+    }
+
+    // Delegación de eventos para la ordenación de las cabeceras de la tabla de desviaciones
+    const abcTableHeader = document.getElementById("abc-table-header");
+    if (abcTableHeader) {
+        abcTableHeader.addEventListener("click", (e) => {
+            const th = e.target.closest("th[data-sort-key]");
+            if (th) {
+                const key = th.dataset.sortKey;
+                handleDeviationsSort(key);
+            }
         });
     }
 
@@ -1487,6 +1499,53 @@ function handleHeaderSort(key) {
         appData.sortDirection = ascKeys.includes(key) ? "asc" : "desc";
     }
     applyFilters();
+}
+
+// Manejar ordenamiento de la tabla de desviaciones
+function handleDeviationsSort(key) {
+    if (appData.deviationsSortKey === key) {
+        appData.deviationsSortDirection = appData.deviationsSortDirection === "asc" ? "desc" : "asc";
+    } else {
+        appData.deviationsSortKey = key;
+        const textKeys = ["sku_interno", "name", "estatus"];
+        appData.deviationsSortDirection = textKeys.includes(key) ? "asc" : "desc";
+    }
+    renderABCOperations();
+}
+
+// Obtener valor para ordenar en la tabla de desviaciones
+function getDeviationsSortValue(sku, key) {
+    const activeWeek = appData.selectedWeekName;
+    const activeReq = sku.weeklyDemands[activeWeek] || 0;
+    const pzasPorCaja = sku.pzasPorCaja || 1;
+    const price = sku.price || 0;
+    
+    switch (key) {
+        case "sku_interno":
+            return sku.sku_interno;
+        case "name":
+            return sku.name;
+        case "pzasPorCaja":
+            return pzasPorCaja;
+        case "histCajas":
+            return sku.historicalAverage;
+        case "histPzas":
+            return sku.historicalAverage * pzasPorCaja;
+        case "histDinero":
+            return sku.historicalAverage * price;
+        case "actCajas":
+            return activeReq;
+        case "actPzas":
+            return activeReq * pzasPorCaja;
+        case "actDinero":
+            return activeReq * price;
+        case "varPct":
+            return sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
+        case "estatus":
+            return sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
+        default:
+            return 0;
+    }
 }
 
 // Renderizar la tabla principal
@@ -3262,6 +3321,225 @@ function exportMatrixToExcel() {
     showNotification("Matriz de planeación exportada correctamente", "success");
 }
 
+// Exportar Reporte de Desviaciones a Excel
+function exportDeviationsToExcel() {
+    if (!appData.abcClassification || !appData.abcClassification.skuList || appData.abcClassification.skuList.length === 0) {
+        showNotification("No hay datos de desviaciones para exportar", "warning");
+        return;
+    }
+    
+    const dateStrToday = new Date().toLocaleDateString('es-MX', { 
+        year: 'numeric', month: '2-digit', day: '2-digit', 
+        hour: '2-digit', minute: '2-digit' 
+    });
+    
+    const rows = [
+        ["REPORTE DE DESVIACIONES DE VENTA Y PROMEDIOS HISTÓRICOS"],
+        ["Sociedad:", appData.selectedSubsidiary],
+        ["Semana Activa:", appData.selectedWeekName],
+        ["Fecha de exportación:", dateStrToday],
+        [], // Fila en blanco
+    ];
+    
+    const headers = [
+        "SKU Interno",
+        "Nombre Artículo",
+        "Pzas por Caja",
+        "Hist. Prom. (Cajas)",
+        "Hist. Prom. (Pzas)",
+        "Hist. Prom. (Dinero)",
+        "Ped. Sem. Activa (Cajas)",
+        "Ped. Sem. Activa (Pzas)",
+        "Venta Sem. Activa ($)",
+        "Variación %",
+        "Estatus"
+    ];
+    
+    rows.push(headers);
+    
+    const activeWeek = appData.selectedWeekName;
+    const { skuList } = appData.abcClassification;
+    
+    // Utilizar la misma ordenación que esté activa en la vista
+    let sortedList = [...skuList];
+    if (appData.deviationsSortKey) {
+        sortedList.sort((a, b) => {
+            let valA = getDeviationsSortValue(a, appData.deviationsSortKey);
+            let valB = getDeviationsSortValue(b, appData.deviationsSortKey);
+            
+            if (typeof valA === "string" && typeof valB === "string") {
+                return appData.deviationsSortDirection === "asc"
+                    ? valA.localeCompare(valB)
+                    : valB.localeCompare(valA);
+            } else {
+                const aNum = valA === null || isNaN(valA) ? -Infinity : valA;
+                const bNum = valB === null || isNaN(valB) ? -Infinity : valB;
+                if (aNum === bNum) return 0;
+                return appData.deviationsSortDirection === "asc"
+                    ? aNum - bNum
+                    : bNum - aNum;
+            }
+        });
+    }
+    
+    let totalHistCajas = 0;
+    let totalHistPzas = 0;
+    let totalHistDinero = 0;
+    let totalActCajas = 0;
+    let totalActPzas = 0;
+    let totalActDinero = 0;
+    
+    sortedList.forEach(sku => {
+        const activeReq = sku.weeklyDemands[activeWeek] || 0;
+        const pzasPorCaja = sku.pzasPorCaja || 1;
+        const price = sku.price || 0;
+        
+        const histCajas = sku.historicalAverage;
+        const histPzas = sku.historicalAverage * pzasPorCaja;
+        const histDinero = sku.historicalAverage * price;
+        const actCajas = activeReq;
+        const actPzas = activeReq * pzasPorCaja;
+        const actDinero = activeReq * price;
+        
+        totalHistCajas += histCajas;
+        totalHistPzas += histPzas;
+        totalHistDinero += histDinero;
+        totalActCajas += actCajas;
+        totalActPzas += actPzas;
+        totalActDinero += actDinero;
+        
+        const varPct = sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) : 0;
+        const isAlert = varPct * 100 < -30;
+        const statusText = isAlert ? "DESVIACIÓN" : "Sin desviación";
+        
+        rows.push([
+            sku.sku_interno,
+            sku.name,
+            pzasPorCaja,
+            histCajas,
+            Math.round(histPzas),
+            histDinero,
+            actCajas,
+            Math.round(actPzas),
+            actDinero,
+            varPct, // Guardar como valor decimal para formatearlo como porcentaje en Excel
+            statusText
+        ]);
+    });
+    
+    // Totales
+    const totalVarPct = totalHistCajas > 0 ? ((totalActCajas - totalHistCajas) / totalHistCajas) : 0;
+    const totalStatusText = totalVarPct * 100 < -30 ? "DESVIACIÓN" : "Sin desviación";
+    
+    rows.push([
+        "TOTALES",
+        "",
+        "",
+        totalHistCajas,
+        Math.round(totalHistPzas),
+        totalHistDinero,
+        totalActCajas,
+        Math.round(totalActPzas),
+        totalActDinero,
+        totalVarPct,
+        totalStatusText
+    ]);
+    
+    // Construir libro de Excel
+    const sheetName = "Desviaciones";
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    
+    // Formatear las columnas numéricas y de porcentaje en Excel
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    const startDataRow = 5; // Fila 6 (0-indexed es 5) es donde empiezan las cabeceras
+    const maxRow = range.e.r;
+    
+    for (let r = startDataRow + 1; r <= maxRow; r++) {
+        // Columna C (2): Pzas por Caja
+        const cellC = ws[XLSX.utils.encode_cell({ r, c: 2 })];
+        if (cellC && cellC.v !== "") {
+            cellC.t = 'n';
+            if (cellC.v === "-") {
+                cellC.t = 's';
+            } else {
+                cellC.z = '#,##0';
+            }
+        }
+        
+        // Columna D (3): Hist. Prom. (Cajas)
+        const cellD = ws[XLSX.utils.encode_cell({ r, c: 3 })];
+        if (cellD && cellD.v !== "") {
+            cellD.t = 'n';
+            cellD.z = '#,##0.0';
+        }
+        
+        // Columna E (4): Hist. Prom. (Pzas)
+        const cellE = ws[XLSX.utils.encode_cell({ r, c: 4 })];
+        if (cellE && cellE.v !== "") {
+            cellE.t = 'n';
+            cellE.z = '#,##0';
+        }
+        
+        // Columna F (5): Hist. Prom. ($)
+        const cellF = ws[XLSX.utils.encode_cell({ r, c: 5 })];
+        if (cellF && cellF.v !== "") {
+            cellF.t = 'n';
+            cellF.z = '$#,##0.00';
+        }
+        
+        // Columna G (6): Ped. Sem. Activa (Cajas)
+        const cellG = ws[XLSX.utils.encode_cell({ r, c: 6 })];
+        if (cellG && cellG.v !== "") {
+            cellG.t = 'n';
+            cellG.z = '#,##0';
+        }
+        
+        // Columna H (7): Ped. Sem. Activa (Pzas)
+        const cellH = ws[XLSX.utils.encode_cell({ r, c: 7 })];
+        if (cellH && cellH.v !== "") {
+            cellH.t = 'n';
+            cellH.z = '#,##0';
+        }
+        
+        // Columna I (8): Venta Sem. Activa ($)
+        const cellI = ws[XLSX.utils.encode_cell({ r, c: 8 })];
+        if (cellI && cellI.v !== "") {
+            cellI.t = 'n';
+            cellI.z = '$#,##0.00';
+        }
+        
+        // Columna J (9): Variación %
+        const cellJ = ws[XLSX.utils.encode_cell({ r, c: 9 })];
+        if (cellJ && cellJ.v !== "") {
+            cellJ.t = 'n';
+            cellJ.z = '0.0%';
+        }
+    }
+    
+    // Autoajustar anchos de columnas
+    ws['!cols'] = [
+        { wch: 15 }, // SKU
+        { wch: 35 }, // Artículo
+        { wch: 12 }, // Pzas/Caja
+        { wch: 18 }, // Hist. Prom (Cajas)
+        { wch: 18 }, // Hist. Prom (Pzas)
+        { wch: 18 }, // Hist. Prom ($)
+        { wch: 22 }, // Ped Activa (Cajas)
+        { wch: 22 }, // Ped Activa (Pzas)
+        { wch: 22 }, // Venta Activa ($)
+        { wch: 12 }, // Var %
+        { wch: 15 }  // Estatus
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    
+    const fileName = `CDS_Desviaciones_Venta_${appData.selectedSubsidiary}_${appData.selectedWeekName.replace(/\s+/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    showNotification(`Reporte de Desviaciones exportado con éxito`, "success");
+}
+
 // ==========================================================================
 // FUNCIONES DE CONTROL DE COMENTARIOS S&OP (HILO DE MULTICOMENTARIOS)
 // ==========================================================================
@@ -3890,6 +4168,26 @@ function renderABCOperations() {
         if (valEl) valEl.textContent = valShare.toFixed(1) + "%";
     });
     
+    // Pintar cabeceras ordenables de la tabla
+    const thead = document.getElementById("abc-table-header");
+    if (thead) {
+        thead.innerHTML = `
+            <tr>
+                ${getDeviationsHeaderHtml("sku_interno", "SKU")}
+                ${getDeviationsHeaderHtml("name", "Artículo")}
+                ${getDeviationsHeaderHtml("pzasPorCaja", "Pzas/Caja", "text-align: right;")}
+                ${getDeviationsHeaderHtml("histCajas", "Hist. Prom. (Cajas)", "text-align: right;")}
+                ${getDeviationsHeaderHtml("histPzas", "Hist. Prom. (Pzas)", "text-align: right;")}
+                ${getDeviationsHeaderHtml("histDinero", "Hist. Prom. ($)", "text-align: right;")}
+                ${getDeviationsHeaderHtml("actCajas", "Ped. Sem. Activa (Cajas)", "text-align: right;")}
+                ${getDeviationsHeaderHtml("actPzas", "Ped. Sem. Activa (Pzas)", "text-align: right;")}
+                ${getDeviationsHeaderHtml("actDinero", "Venta Sem. Activa ($)", "text-align: right;")}
+                ${getDeviationsHeaderHtml("varPct", "Var %", "text-align: right;")}
+                ${getDeviationsHeaderHtml("estatus", "Estatus")}
+            </tr>
+        `;
+    }
+    
     // Pintar tabla de desviaciones para todos los SKUs
     const tbody = document.getElementById("abc-alerts-body");
     if (!tbody) return;
@@ -3899,7 +4197,36 @@ function renderABCOperations() {
     let tableHtml = "";
     let countDeviations = 0;
     
-    skuList.forEach(sku => {
+    // Copiar y ordenar lista de SKUs
+    let sortedList = [...skuList];
+    if (appData.deviationsSortKey) {
+        sortedList.sort((a, b) => {
+            let valA = getDeviationsSortValue(a, appData.deviationsSortKey);
+            let valB = getDeviationsSortValue(b, appData.deviationsSortKey);
+            
+            if (typeof valA === "string" && typeof valB === "string") {
+                return appData.deviationsSortDirection === "asc"
+                    ? valA.localeCompare(valB)
+                    : valB.localeCompare(valA);
+            } else {
+                const aNum = valA === null || isNaN(valA) ? -Infinity : valA;
+                const bNum = valB === null || isNaN(valB) ? -Infinity : valB;
+                if (aNum === bNum) return 0;
+                return appData.deviationsSortDirection === "asc"
+                    ? aNum - bNum
+                    : bNum - aNum;
+            }
+        });
+    }
+    
+    let totalHistCajas = 0;
+    let totalHistPzas = 0;
+    let totalHistDinero = 0;
+    let totalActCajas = 0;
+    let totalActPzas = 0;
+    let totalActDinero = 0;
+    
+    sortedList.forEach(sku => {
         const activeReq = sku.weeklyDemands[activeWeek] || 0;
         const varPct = sku.historicalAverage > 0 ? ((activeReq - sku.historicalAverage) / sku.historicalAverage) * 100 : 0;
         const isAlert = varPct < -30;
@@ -3908,18 +4235,32 @@ function renderABCOperations() {
         const varSign = varPct >= 0 ? "+" : "";
         const varColor = isAlert ? "var(--neon-red)" : "var(--neon-green)";
         const pzasPorCaja = sku.pzasPorCaja || 1;
-        const histPromPzas = Math.round(sku.historicalAverage * pzasPorCaja);
-        const activeReqPzas = Math.round(activeReq * pzasPorCaja);
+        
+        const histCajas = sku.historicalAverage;
+        const histPzas = sku.historicalAverage * pzasPorCaja;
+        const histDinero = sku.historicalAverage * (sku.price || 0);
+        const actCajas = activeReq;
+        const actPzas = activeReq * pzasPorCaja;
+        const actDinero = activeReq * (sku.price || 0);
+        
+        totalHistCajas += histCajas;
+        totalHistPzas += histPzas;
+        totalHistDinero += histDinero;
+        totalActCajas += actCajas;
+        totalActPzas += actPzas;
+        totalActDinero += actDinero;
         
         tableHtml += `
             <tr>
                 <td style="font-weight: 600;">${sku.sku_interno}</td>
                 <td>${sku.name}</td>
                 <td class="num-val">${pzasPorCaja}</td>
-                <td class="num-val">${sku.historicalAverage.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                <td class="num-val">${histPromPzas.toLocaleString('es-MX')}</td>
-                <td class="num-val" style="font-weight: 600;">${activeReq.toLocaleString('es-MX')}</td>
-                <td class="num-val" style="font-weight: 600;">${activeReqPzas.toLocaleString('es-MX')}</td>
+                <td class="num-val">${histCajas.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+                <td class="num-val">${Math.round(histPzas).toLocaleString('es-MX')}</td>
+                <td class="num-val">$${histDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num-val" style="font-weight: 600;">${actCajas.toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 600;">${Math.round(actPzas).toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 600;">$${actDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="num-val" style="color: ${varColor}; font-weight: 600;">${varSign}${varPct.toFixed(1)}%</td>
                 <td>
                     ${isAlert 
@@ -3931,17 +4272,51 @@ function renderABCOperations() {
         `;
     });
     
+    // Agregar fila de totales
+    if (countDeviations > 0) {
+        const totalVarPct = totalHistCajas > 0 ? ((totalActCajas - totalHistCajas) / totalHistCajas) * 100 : 0;
+        const totalVarSign = totalVarPct >= 0 ? "+" : "";
+        const totalVarColor = totalVarPct < -30 ? "var(--neon-red)" : "var(--neon-green)";
+        const totalIsAlert = totalVarPct < -30;
+        
+        tableHtml += `
+            <tr style="font-weight: 700; background-color: rgba(32, 33, 36, 0.05); border-top: 2px solid var(--border-color); position: sticky; bottom: 0; z-index: 5;">
+                <td colspan="2" style="text-align: left; font-weight: 700;">TOTALES</td>
+                <td class="num-val">-</td>
+                <td class="num-val">${totalHistCajas.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+                <td class="num-val">${Math.round(totalHistPzas).toLocaleString('es-MX')}</td>
+                <td class="num-val">$${totalHistDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num-val" style="font-weight: 700;">${totalActCajas.toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 700;">${Math.round(totalActPzas).toLocaleString('es-MX')}</td>
+                <td class="num-val" style="font-weight: 700;">$${totalActDinero.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num-val" style="color: ${totalVarColor}; font-weight: 700;">${totalVarSign}${totalVarPct.toFixed(1)}%</td>
+                <td>
+                    ${totalIsAlert 
+                        ? `<span class="abc-badge-alert">DESVIACIÓN</span>` 
+                        : `<span class="abc-badge-ok">Sin desviación</span>`
+                    }
+                </td>
+            </tr>
+        `;
+    }
+    
     if (countDeviations === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin productos para mostrar.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--neon-green); font-weight: 600; padding: 12px;">✅ Sin productos para mostrar.</td></tr>`;
     } else {
         tbody.innerHTML = tableHtml;
     }
+}
 
-    // Resetear el panel de IA cuando se cambian filtros
-    const iaText = document.getElementById("abc-ia-text");
-    if (iaText) {
-        iaText.innerHTML = `Selecciona una empresa y semana para activar el análisis inteligente de mezcla y desviación comercial.`;
+// Función auxiliar para renderizar cabecera de la tabla de desviaciones
+function getDeviationsHeaderHtml(key, text, extraStyle = "") {
+    let indicator = '<span class="sort-indicator" style="opacity:0.25; margin-left:4px; font-size:9px;">↕</span>';
+    if (appData.deviationsSortKey === key) {
+        indicator = appData.deviationsSortDirection === "asc"
+            ? '<span class="sort-indicator" style="color:var(--neon-cyan); margin-left:4px; font-size:9px;">▲</span>'
+            : '<span class="sort-indicator" style="color:var(--neon-cyan); margin-left:4px; font-size:9px;">▼</span>';
     }
+    const style = extraStyle ? `cursor:pointer; user-select:none; ${extraStyle}` : 'cursor:pointer; user-select:none;';
+    return `<th class="sortable-header" style="${style}" data-sort-key="${key}">${text}${indicator}</th>`;
 }
 
 // Analizar la mezcla comercial y desviaciones Clase A utilizando Gemini AI

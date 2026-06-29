@@ -533,28 +533,37 @@
                 <div class="abc-details-container">
                     <!-- Tabla de Desviaciones -->
                     <div class="abc-table-container">
-                        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Monitoreo de Desviaciones de Venta y Promedios Históricos (Todos los SKUs)</h4>
-                        <p style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.35;">
-                            * El promedio histórico semanal se calcula a partir del volumen de ventas solicitado de las últimas 8 semanas (o todas las semanas disponibles en el archivo si son menos de 8). Estatus "Desviación" se activa si lo solicitado en la semana es menor al promedio por más del 30%.
-                        </p>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 16px;">
+                            <div style="flex: 1;">
+                                <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Monitoreo de Desviaciones de Venta y Promedios Históricos (Todos los SKUs)</h4>
+                                <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0; line-height: 1.35;">
+                                    * El promedio histórico semanal se calcula a partir del volumen de ventas solicitado de las últimas 8 semanas (o todas las semanas disponibles en el archivo si son menos de 8). Estatus "Desviación" se activa si lo solicitado en la semana es menor al promedio por más del 30%.
+                                </p>
+                            </div>
+                            <button id="export-deviations-btn" class="btn btn-outline" style="font-size: 11px; padding: 6px 12px; gap: 6px; display: flex; align-items: center; border-color: rgba(26,115,232,0.25); color: var(--neon-cyan); flex-shrink: 0;">
+                                <i data-lucide="download" style="width: 13px; height: 13px;"></i> Exportar Reporte
+                            </button>
+                        </div>
                         <div class="table-wrapper" style="max-height: 250px; overflow-y: auto;">
                             <table class="data-table" style="font-size: 11px;">
-                                <thead>
+                                <thead id="abc-table-header">
                                     <tr>
                                         <th>SKU</th>
                                         <th>Artículo</th>
                                         <th>Pzas/Caja</th>
                                         <th>Hist. Prom. (Cajas)</th>
                                         <th>Hist. Prom. (Pzas)</th>
+                                        <th>Hist. Prom. ($)</th>
                                         <th>Ped. Sem. Activa (Cajas)</th>
                                         <th>Ped. Sem. Activa (Pzas)</th>
+                                        <th>Venta Sem. Activa ($)</th>
                                         <th>Var %</th>
                                         <th>Estatus</th>
                                     </tr>
                                 </thead>
                                 <tbody id="abc-alerts-body">
                                     <tr>
-                                        <td colspan="9" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
+                                        <td colspan="11" style="text-align: center; color: var(--text-muted);">Cargando análisis...</td>
                                     </tr>
                                 </tbody>
                             </table>
