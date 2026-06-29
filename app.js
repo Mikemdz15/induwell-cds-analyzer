@@ -56,6 +56,12 @@ document.addEventListener("DOMContentLoaded", () => {
     initUI();
     loadGeminiKey();
     checkAuthState();
+    
+    // Loop de actualización automática: recarga la página cada 30 minutos (1800000 ms)
+    setInterval(() => {
+        console.log("Iniciando recarga automática de página (cada 30 min)...");
+        window.location.reload();
+    }, 30 * 60 * 1000);
 });
 
 // Inicializar eventos de la interfaz de usuario
@@ -107,7 +113,9 @@ function initUI() {
     const searchInput = document.getElementById("search-input");
     if (searchInput) {
         searchInput.addEventListener("input", (e) => {
-            appData.searchQuery = e.target.value.trim().toLowerCase();
+            const query = e.target.value.trim().toLowerCase();
+            appData.searchQuery = query;
+            sessionStorage.setItem("sop_search_query", query);
             applyFilters();
         });
     }
@@ -238,6 +246,7 @@ function initUI() {
                 searchInput.value = "";
             }
             appData.searchQuery = "";
+            sessionStorage.removeItem("sop_search_query");
             applyFilters();
             showNotification("Filtro de búsqueda limpiado", "info");
         });
@@ -331,8 +340,11 @@ async function loadDashboardData() {
         }
         appData.weeks.sort((a, b) => getWeekNumber(b) - getWeekNumber(a));
         
-        // Seleccionar por defecto la semana más reciente existente
-        if (!appData.selectedWeekName || !appData.weeks.includes(appData.selectedWeekName)) {
+        // Seleccionar por defecto la semana más reciente existente o la guardada
+        const savedWeek = sessionStorage.getItem("sop_selected_week");
+        if (savedWeek && appData.weeks.includes(savedWeek)) {
+            appData.selectedWeekName = savedWeek;
+        } else if (!appData.selectedWeekName || !appData.weeks.includes(appData.selectedWeekName)) {
             appData.selectedWeekName = appData.weeks[0];
         }
         
@@ -779,6 +791,7 @@ function renderDaySelector() {
 // Seleccionar día
 function selectDay(dayIndex) {
     appData.selectedDayIndex = dayIndex;
+    sessionStorage.setItem("sop_selected_day_index", dayIndex);
     
     const buttons = document.querySelectorAll("#day-selector-container .day-btn");
     buttons.forEach((btn, idx) => {
@@ -827,6 +840,7 @@ function changeWeek(weekName) {
     if (!currentWorkbook) return;
     
     appData.selectedWeekName = weekName;
+    sessionStorage.setItem("sop_selected_week", weekName);
     const sheet = currentWorkbook.Sheets[weekName];
     if (sheet) {
         showLoadingState(true);
@@ -1383,6 +1397,7 @@ window.focusOnSku = function(skuCode) {
     if (searchInput) {
         searchInput.value = skuCode;
         appData.searchQuery = skuCode.toLowerCase();
+        sessionStorage.setItem("sop_search_query", skuCode.toLowerCase());
         applyFilters();
     }
 };
@@ -2322,6 +2337,22 @@ function checkAuthState() {
                 if (authOverlay) authOverlay.style.display = "none";
                 if (appContainer) appContainer.style.display = "flex";
                 
+                // Restaurar week, day index y search query
+                const savedWeek = sessionStorage.getItem("sop_selected_week");
+                if (savedWeek) {
+                    appData.selectedWeekName = savedWeek;
+                }
+                const savedDayIndex = sessionStorage.getItem("sop_selected_day_index");
+                if (savedDayIndex !== null) {
+                    appData.selectedDayIndex = parseInt(savedDayIndex, 10);
+                }
+                const savedSearchQuery = sessionStorage.getItem("sop_search_query");
+                if (savedSearchQuery) {
+                    appData.searchQuery = savedSearchQuery;
+                    const searchInput = document.getElementById("search-input");
+                    if (searchInput) searchInput.value = savedSearchQuery;
+                }
+                
                 // Cargar datos
                 loadDashboardData();
             }
@@ -2338,6 +2369,9 @@ function showLoginScreen() {
     loggedInUser = null;
     sessionStorage.removeItem("sop_logged_in_user");
     sessionStorage.removeItem("sop_active_company");
+    sessionStorage.removeItem("sop_selected_week");
+    sessionStorage.removeItem("sop_selected_day_index");
+    sessionStorage.removeItem("sop_search_query");
     
     // Activar y limpiar campos de login
     const usernameInput = document.getElementById("login-username");
@@ -2859,6 +2893,9 @@ async function renderWorkspaceSelector() {
 
 // Seleccionar espacio de trabajo e ingresar al dashboard
 function selectWorkspace(companyName) {
+    sessionStorage.removeItem("sop_selected_week");
+    sessionStorage.removeItem("sop_selected_day_index");
+    sessionStorage.removeItem("sop_search_query");
     sessionStorage.setItem("sop_active_company", companyName);
     appData.selectedSubsidiary = companyName;
     checkAuthState();
