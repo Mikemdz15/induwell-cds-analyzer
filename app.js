@@ -62,7 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Loop de actualización automática: recarga la página cada 30 minutos (1800000 ms)
     setInterval(() => {
         console.log("Iniciando recarga automática de página (cada 30 min)...");
-        window.location.reload();
+        const url = new URL(window.location.href);
+        url.searchParams.set("refresh_t", Date.now().toString());
+        window.location.href = url.toString();
     }, 30 * 60 * 1000);
 });
 
@@ -397,7 +399,7 @@ async function loadDashboardData() {
 async function loadFallbackLocalData() {
     showLoadingState(true);
     try {
-        const response = await fetch("./Proyeccion plan de produccion logistica_Sem 24_2026.xlsx");
+        const response = await fetch("./Proyeccion plan de produccion logistica_Sem 24_2026.xlsx?t=" + Date.now(), { cache: "no-store" });
         if (!response.ok) throw new Error("No local fallback file found");
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
