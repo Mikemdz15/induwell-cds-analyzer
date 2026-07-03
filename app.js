@@ -4210,17 +4210,48 @@ async function loadSkuChatHistory(sku, subsidiary) {
             `;
         }
         
+        const isOwner = loggedInUser && (loggedInUser.username === comment.user_owner || loggedInUser.role === 'admin');
+        let actionsHtml = "";
+        if (isOwner) {
+            actionsHtml = `
+                <div style="display: flex; gap: 8px;">
+                    <button class="edit-sku-comment-btn" style="background:none; border:none; padding:0; font-size:10px; color:var(--text-secondary); cursor:pointer; font-weight: 500;">Editar</button>
+                    <button class="delete-sku-comment-btn" style="background:none; border:none; padding:0; font-size:10px; color:var(--neon-red); cursor:pointer; font-weight: 500;">Eliminar</button>
+                </div>
+            `;
+        }
+        
         item.innerHTML = `
             <div class="sku-chat-meta-header">
                 <div class="sku-chat-author-info">
                     <span class="sku-chat-author-name">${comment.user_owner}</span>
                     <span class="cell-badge cell-neutral sku-chat-week-badge">${comment.week}</span>
                 </div>
-                <span class="sku-chat-timestamp">${formattedDate}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="sku-chat-timestamp">${formattedDate}</span>
+                    ${actionsHtml}
+                </div>
             </div>
-            <div class="sku-chat-comment-text">${comment.comment}</div>
+            <div class="sku-chat-comment-text" id="sku-comment-body-${comment.id}">${comment.comment}</div>
             ${imageHtml}
         `;
+        
+        const editBtn = item.querySelector(".edit-sku-comment-btn");
+        const deleteBtn = item.querySelector(".delete-sku-comment-btn");
+        
+        if (editBtn) {
+            editBtn.addEventListener("click", () => {
+                toggleSkuInlineEdit(comment.id);
+            });
+        }
+        
+        if (deleteBtn) {
+            deleteBtn.addEventListener("click", () => {
+                if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
+                    deleteSkuComment(comment.id);
+                }
+            });
+        }
         
         listEl.appendChild(item);
     });
@@ -4427,6 +4458,152 @@ async function loadSkuCommentCounts() {
     } catch(e) {
         console.warn("Error scanning localStorage for SKU comment counts:", e);
     }
+}
+
+// Activar edición inline de un comentario de SKU
+function toggleSkuInlineEdit(commentId) {
+    const bodyEl = document.getElementById(`sku-comment-body-${commentId}`);
+    if (!bodyEl) return;
+    
+    if (bodyEl.querySelector('.comment-item-edit-area')) return;
+    
+    const currentText = bodyEl.textContent;
+    bodyEl.innerHTML = `
+        <div class="comment-item-edit-area" style="margin-top: 6px;">
+            <textarea class="comment-item-edit-textarea" id="sku-edit-textarea-${commentId}" style="width:100%; min-height:40px; font-size:12px; padding:6px; border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-sans); outline:none;">${currentText}</textarea>
+            <div class="comment-item-edit-buttons" style="display:flex; justify-content:flex-end; gap:6px; margin-top:6px;">
+                <button class="btn btn-outline cancel-edit-btn" style="padding: 2px 6px; font-size: 10px; height: 22px; line-height:1;">Cancelar</button>
+                <button class="comment-save-btn save-edit-btn" style="padding: 2px 8px; font-size: 10px; height: 22px; line-height:1; background-color: var(--neon-cyan); border-color: var(--neon-cyan); color: white; border-radius: 4px; border: none; cursor:pointer;">Guardar</button>
+            </div>
+        </div>
+    `;
+    
+    const cancelBtn = bodyEl.querySelector(".cancel-edit-btn");
+    const saveBtn = bodyEl.querySelector(".save-edit-btn");
+    const textarea = bodyEl.querySelector(".comment-item-edit-textarea");
+    
+    if (textarea) textarea.focus();
+    
+    cancelBtn.addEventListener("click", () => {
+        bodyEl.innerHTML = currentText;
+    });
+    
+    saveBtn.addEventListener("click", () => {
+        const newText = textarea.value.trim();
+        if (newText === "") return;
+        updateSkuComment(commentId, newText);
+    });
+}
+
+// Actualizar comentario modificado de SKU
+async function updateSkuComment(commentId, newText) {
+    const { sku, subsidiary } = activeSkuChat;
+    if (!sku || !subsidiary) return;
+    
+    let updatedInDb = false;
+    
+    // 1. Guardar en Supabase
+    if (supabaseClient) {
+        try {
+            const queryId = isNaN(commentId) ? commentId : parseInt(commentId, 10);
+            const { error } = await supabaseClient
+                .from('comentarios_sku')
+                .update({ comment: newText })
+                .eq('id', queryId);
+                
+            if (!error) {
+                updatedInDb = true;
+            } else {
+                console.error("Error updating SKU comment in Supabase:", error);
+            }
+        } catch (e) {
+            console.error("Database error updating SKU comment:", e);
+        }
+    }
+    
+    // 2. Guardar en localStorage
+    const localKey = `sop_sku_comments_${subsidiary}_${sku}`;
+    try {
+        let localComments = [];
+        const existing = localStorage.getItem(localKey);
+        if (existing) {
+            localComments = JSON.parse(existing);
+        }
+        
+        let updatedLocal = false;
+        localComments = localComments.map(c => {
+            if (String(c.id) === String(commentId)) {
+                c.comment = newText;
+                updatedLocal = true;
+            }
+            return c;
+        });
+        
+        if (updatedLocal) {
+            localStorage.setItem(localKey, JSON.stringify(localComments));
+        }
+    } catch(e) {
+        console.warn("Failed to update SKU comment in localStorage:", e);
+    }
+    
+    await loadSkuChatHistory(sku, subsidiary);
+    showNotification("Comentario de SKU actualizado", "success");
+}
+
+// Eliminar un comentario de SKU
+async function deleteSkuComment(commentId) {
+    const { sku, subsidiary } = activeSkuChat;
+    if (!sku || !subsidiary) return;
+    
+    let deletedInDb = false;
+    
+    // 1. Eliminar de Supabase
+    if (supabaseClient) {
+        try {
+            const queryId = isNaN(commentId) ? commentId : parseInt(commentId, 10);
+            const { error } = await supabaseClient
+                .from('comentarios_sku')
+                .delete()
+                .eq('id', queryId);
+                
+            if (!error) {
+                deletedInDb = true;
+            } else {
+                console.error("Error deleting SKU comment from Supabase:", error);
+            }
+        } catch(e) {
+            console.error("Database error deleting SKU comment:", e);
+        }
+    }
+    
+    // 2. Eliminar de localStorage
+    const localKey = `sop_sku_comments_${subsidiary}_${sku}`;
+    try {
+        let localComments = [];
+        const existing = localStorage.getItem(localKey);
+        if (existing) {
+            localComments = JSON.parse(existing);
+        }
+        
+        const beforeLen = localComments.length;
+        localComments = localComments.filter(c => String(c.id) !== String(commentId));
+        
+        if (localComments.length !== beforeLen) {
+            localStorage.setItem(localKey, JSON.stringify(localComments));
+        }
+    } catch(e) {
+        console.warn("Failed to delete SKU comment from localStorage:", e);
+    }
+    
+    // Actualizar conteo localmente
+    skuCommentCounts[sku] = Math.max(0, (skuCommentCounts[sku] || 1) - 1);
+    
+    await loadSkuChatHistory(sku, subsidiary);
+    
+    // Refrescar tabla para actualizar insignias
+    renderGridTable();
+    
+    showNotification("Comentario de SKU eliminado", "success");
 }
 
 // ==========================================================================
