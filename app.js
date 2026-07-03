@@ -4647,8 +4647,6 @@ async function deleteSkuComment(commentId) {
     showNotification("Comentario de SKU eliminado", "success");
 }
 
-}
-
 // Cargar lista completa de usuarios para menciones
 async function loadUsersForMentions() {
     if (!supabaseClient) return;
