@@ -1592,6 +1592,7 @@ function renderGridTable() {
             ${getHeaderHtml("final_inv_theoretical", "Inv. Final Teo", "num-val")}
             ${getHeaderHtml("final_inv_real", "Inv. Final Real", "num-val")}
             ${getHeaderHtml("var_vs_plan", "Estatus", "num-val", "text-align: center;")}
+            <th style="text-align: center; min-width: 110px;">Comentarios</th>
         `;
         
         appData.filteredSkus.forEach(sku => {
@@ -1622,6 +1623,9 @@ function renderGridTable() {
                 dailyStatusClass = "cell-warning";
                 dailyStatusText = "Riesgo Quiebre";
             }
+            
+            const commentCount = skuCommentCounts[sku.sku_interno] || 0;
+            const badgeHtml = commentCount > 0 ? `<span style="background: var(--neon-cyan); color: white; border-radius: 10px; padding: 1.5px 5px; font-size: 9px; font-weight: 700; margin-left: 4px;">${commentCount}</span>` : '';
             
             tr.innerHTML = `
                 <td class="sticky-col sku-class-${sku.class ? sku.class.toLowerCase() : 'c'}">
@@ -1654,10 +1658,17 @@ function renderGridTable() {
                 <td class="num-val" style="text-align: center;">
                     <span class="cell-badge ${dailyStatusClass}" style="cursor:pointer" onclick="focusOnSku('${sku.sku_interno}')">${dailyStatusText}</span>
                 </td>
+                <td class="num-val" style="text-align: center; vertical-align: middle;">
+                    <button class="btn-comment-sku" onclick="openSkuChat('${sku.sku_interno}', \`${sku.name.replace(/`/g, '\\`').replace(/'/g, "\\'")}\`, '${sku.subsidiary}')" title="Chat de Colaboración SKU">
+                        <i data-lucide="message-square" style="width: 14px; height: 14px;"></i>
+                        ${badgeHtml}
+                    </button>
+                </td>
             `;
             
             tableBody.appendChild(tr);
         });
+
     } else {
         tableHeader.innerHTML = `
             ${getHeaderHtml("sku_interno", "Subsidiaria / SKU", "sticky-col", "min-width: 130px;")}
@@ -1674,6 +1685,7 @@ function renderGridTable() {
             ${getHeaderHtml("final_inv_theoretical", "Inv. Final Teorico", "num-val")}
             ${getHeaderHtml("final_inv_real", "Inv. Final Real", "num-val")}
             ${getHeaderHtml("var_vs_plan", "Estatus", "num-val", "text-align: center;")}
+            <th style="text-align: center; min-width: 110px;">Comentarios</th>
         `;
         
         appData.filteredSkus.forEach(sku => {
@@ -1718,6 +1730,9 @@ function renderGridTable() {
                 complianceClass = weeklyCompliance >= 1 ? "cell-success" : (weeklyCompliance > 0 ? "cell-warning" : "cell-danger");
             }
             
+            const commentCount = skuCommentCounts[sku.sku_interno] || 0;
+            const badgeHtml = commentCount > 0 ? `<span style="background: var(--neon-cyan); color: white; border-radius: 10px; padding: 1.5px 5px; font-size: 9px; font-weight: 700; margin-left: 4px;">${commentCount}</span>` : '';
+            
             tr.innerHTML = `
                 <td class="sticky-col sku-class-${sku.class ? sku.class.toLowerCase() : 'c'}">
                     <span class="sku-sub ${sku.subsidiary === 'ALPHALAB' ? 'sub-alphalab' : 'sub-velaluz'}">${sku.subsidiary}</span><br>
@@ -1747,6 +1762,12 @@ function renderGridTable() {
                         ? `<span class="cell-badge cell-danger" style="cursor:pointer" onclick="focusOnSku('${sku.sku_interno}')">${daysWithRisks} d con quiebre</span>`
                         : `<span class="cell-badge cell-success" style="cursor:pointer" onclick="focusOnSku('${sku.sku_interno}')">Sin riesgo</span>`
                     }
+                </td>
+                <td class="num-val" style="text-align: center; vertical-align: middle;">
+                    <button class="btn-comment-sku" onclick="openSkuChat('${sku.sku_interno}', \`${sku.name.replace(/`/g, '\\`').replace(/'/g, "\\'")}\`, '${sku.subsidiary}')" title="Chat de Colaboración SKU">
+                        <i data-lucide="message-square" style="width: 14px; height: 14px;"></i>
+                        ${badgeHtml}
+                    </button>
                 </td>
             `;
             
@@ -3572,6 +3593,9 @@ function setupCommentEvents() {
             });
         }
     });
+    
+    // Inicializar eventos de chat SKU
+    setupSkuCommentEvents();
 }
 
 // Cargar comentarios correspondientes al filtro seleccionado
@@ -3747,6 +3771,9 @@ async function loadComments() {
             if (statusText) statusText.textContent = finalStatusText;
         }
     });
+    
+    // Cargar contadores de comentarios de todos los SKU
+    await loadSkuCommentCounts();
 }
 
 // Agregar nuevo comentario
@@ -3993,8 +4020,414 @@ async function deleteComment(commentId, section) {
 }
 
 // ==========================================================================
+// CAPACIDAD: CHAT DE COLABORACIÓN Y COMENTARIOS POR SKU
+// ==========================================================================
+
+let activeSkuChat = { sku: null, name: null, subsidiary: null };
+let skuCommentCounts = {};
+let selectedSkuChatFile = null;
+
+// Configurar eventos para el chat del SKU
+function setupSkuCommentEvents() {
+    const modal = document.getElementById("sku-comments-modal");
+    const closeBtn = document.getElementById("close-sku-comments-btn");
+    const attachBtn = document.getElementById("sku-chat-attach-btn");
+    const fileInput = document.getElementById("sku-chat-file-input");
+    const removeImgBtn = document.getElementById("remove-sku-chat-image-btn");
+    const sendBtn = document.getElementById("sku-chat-send-btn");
+    const chatInput = document.getElementById("sku-chat-input");
+
+    if (closeBtn && modal) {
+        closeBtn.addEventListener("click", () => {
+            modal.style.display = "none";
+            clearSkuChatInputs();
+        });
+    }
+
+    if (attachBtn && fileInput) {
+        attachBtn.addEventListener("click", () => {
+            fileInput.click();
+        });
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedSkuChatFile = file;
+                const previewContainer = document.getElementById("sku-chat-image-preview-container");
+                const previewImg = document.getElementById("sku-chat-image-preview");
+                const previewName = document.getElementById("sku-chat-image-name");
+
+                if (previewContainer && previewImg && previewName) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        previewImg.src = event.target.result;
+                        previewName.textContent = file.name;
+                        previewContainer.style.display = "flex";
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+    }
+
+    if (removeImgBtn) {
+        removeImgBtn.addEventListener("click", () => {
+            clearSkuChatImageSelection();
+        });
+    }
+
+    if (sendBtn) {
+        sendBtn.addEventListener("click", () => {
+            sendSkuComment();
+        });
+    }
+
+    if (chatInput) {
+        chatInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendSkuComment();
+            }
+        });
+    }
+}
+
+// Limpiar la imagen seleccionada y su vista previa
+function clearSkuChatImageSelection() {
+    selectedSkuChatFile = null;
+    const fileInput = document.getElementById("sku-chat-file-input");
+    if (fileInput) fileInput.value = "";
+    
+    const previewContainer = document.getElementById("sku-chat-image-preview-container");
+    const previewImg = document.getElementById("sku-chat-image-preview");
+    if (previewContainer) previewContainer.style.display = "none";
+    if (previewImg) previewImg.src = "";
+}
+
+// Limpiar todos los campos de entrada del chat
+function clearSkuChatInputs() {
+    const chatInput = document.getElementById("sku-chat-input");
+    if (chatInput) {
+        chatInput.value = "";
+        chatInput.style.height = "36px";
+    }
+    clearSkuChatImageSelection();
+}
+
+// Abrir el modal del chat para un SKU específico
+async function openSkuChat(sku, name, subsidiary) {
+    activeSkuChat = { sku, name, subsidiary };
+    
+    const modal = document.getElementById("sku-comments-modal");
+    const titleEl = document.getElementById("sku-comments-title");
+    const subtitleEl = document.getElementById("sku-comments-subtitle");
+    
+    if (titleEl) titleEl.textContent = `Chat de SKU: ${sku}`;
+    if (subtitleEl) subtitleEl.textContent = `${name} (${subsidiary})`;
+    
+    if (modal) {
+        modal.style.display = "flex";
+    }
+    
+    clearSkuChatInputs();
+    await loadSkuChatHistory(sku, subsidiary);
+}
+
+// Cargar el historial completo de comentarios del SKU
+async function loadSkuChatHistory(sku, subsidiary) {
+    const listEl = document.getElementById("sku-chat-messages");
+    if (!listEl) return;
+    
+    listEl.innerHTML = `<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 20px;">Cargando historial de chat...</div>`;
+    
+    let comments = [];
+    let loadedFromDb = false;
+    
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('comentarios_sku')
+                .select('*')
+                .eq('sku', sku)
+                .eq('subsidiary', subsidiary)
+                .order('created_at', { ascending: true });
+                
+            if (!error && data) {
+                comments = data;
+                loadedFromDb = true;
+            } else if (error) {
+                console.warn("Error fetching SKU comments from Supabase, using localStorage:", error);
+            }
+        } catch (e) {
+            console.error("Error connecting to Supabase for SKU comments:", e);
+        }
+    }
+    
+    if (!loadedFromDb) {
+        const localKey = `sop_sku_comments_${subsidiary}_${sku}`;
+        try {
+            const dataStr = localStorage.getItem(localKey);
+            if (dataStr) {
+                comments = JSON.parse(dataStr);
+                if (!Array.isArray(comments)) comments = [];
+            }
+        } catch(e) {
+            console.error("Error reading SKU comments from localStorage:", e);
+        }
+    }
+    
+    // Ordenar cronológicamente ascendente
+    comments.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    
+    listEl.innerHTML = "";
+    if (comments.length === 0) {
+        listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 40px 20px; font-style: italic;">No hay comentarios registrados para este artículo.<br>Sé el primero en agregar una nota u observación.</div>`;
+        return;
+    }
+    
+    comments.forEach(comment => {
+        const item = document.createElement("div");
+        item.className = "sku-chat-bubble";
+        
+        const dateObj = new Date(comment.created_at);
+        const formattedDate = isNaN(dateObj.getTime())
+            ? "Reciente"
+            : dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) + " " + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+        let imageHtml = "";
+        if (comment.image_url) {
+            imageHtml = `
+                <div class="sku-chat-image-attachment" onclick="window.open('${comment.image_url}', '_blank')">
+                    <img src="${comment.image_url}" alt="Adjunto de SKU">
+                </div>
+            `;
+        }
+        
+        item.innerHTML = `
+            <div class="sku-chat-meta-header">
+                <div class="sku-chat-author-info">
+                    <span class="sku-chat-author-name">${comment.user_owner}</span>
+                    <span class="cell-badge cell-neutral sku-chat-week-badge">${comment.week}</span>
+                </div>
+                <span class="sku-chat-timestamp">${formattedDate}</span>
+            </div>
+            <div class="sku-chat-comment-text">${comment.comment}</div>
+            ${imageHtml}
+        `;
+        
+        listEl.appendChild(item);
+    });
+    
+    // Auto scroll al fondo
+    setTimeout(() => {
+        listEl.scrollTop = listEl.scrollHeight;
+    }, 50);
+}
+
+// Enviar un nuevo comentario de SKU
+async function sendSkuComment() {
+    const chatInput = document.getElementById("sku-chat-input");
+    const sendBtn = document.getElementById("sku-chat-send-btn");
+    
+    if (!chatInput || !sendBtn) return;
+    
+    const text = chatInput.value.trim();
+    if (text === "" && !selectedSkuChatFile) return;
+    
+    const { sku, name, subsidiary } = activeSkuChat;
+    if (!sku || !subsidiary) return;
+    
+    sendBtn.disabled = true;
+    chatInput.disabled = true;
+    
+    const username = loggedInUser ? loggedInUser.username : 'desconocido';
+    const week = appData.selectedWeekName || 'Semana N/A';
+    const createdAt = new Date().toISOString();
+    
+    showNotification("Enviando comentario...", "info");
+    
+    let uploadedUrl = null;
+    if (selectedSkuChatFile) {
+        uploadedUrl = await uploadSkuChatImage(selectedSkuChatFile, sku, subsidiary);
+    }
+    
+    const newCommentObj = {
+        sku,
+        subsidiary,
+        week,
+        comment: text,
+        user_owner: username,
+        created_at: createdAt,
+        image_url: uploadedUrl
+    };
+    
+    let savedInDb = false;
+    
+    // Guardar en Supabase
+    if (supabaseClient) {
+        try {
+            const { error } = await supabaseClient
+                .from('comentarios_sku')
+                .insert([{
+                    sku,
+                    subsidiary,
+                    week,
+                    comment: text,
+                    user_owner: username,
+                    image_url: uploadedUrl
+                }]);
+                
+            if (!error) {
+                savedInDb = true;
+            } else {
+                console.error("Error inserting SKU comment to Supabase:", error);
+            }
+        } catch(e) {
+            console.error("Database connection exception for SKU comment:", e);
+        }
+    }
+    
+    // Guardar copia local de respaldo
+    const localKey = `sop_sku_comments_${subsidiary}_${sku}`;
+    try {
+        let localComments = [];
+        const existing = localStorage.getItem(localKey);
+        if (existing) {
+            localComments = JSON.parse(existing);
+            if (!Array.isArray(localComments)) localComments = [];
+        }
+        localComments.push({
+            ...newCommentObj,
+            id: Date.now()
+        });
+        localStorage.setItem(localKey, JSON.stringify(localComments));
+    } catch(e) {
+        console.warn("Failed to write SKU comment backup to localStorage:", e);
+    }
+    
+    // Actualizar conteo localmente
+    skuCommentCounts[sku] = (skuCommentCounts[sku] || 0) + 1;
+    
+    // Limpiar entrada
+    clearSkuChatInputs();
+    
+    chatInput.disabled = false;
+    sendBtn.disabled = false;
+    
+    await loadSkuChatHistory(sku, subsidiary);
+    
+    // Refrescar tabla para actualizar insignias
+    renderGridTable();
+    
+    showNotification(
+        savedInDb ? "Comentario publicado correctamente" : "Comentario guardado localmente (Offline)", 
+        "success"
+    );
+}
+
+// Subir imagen del chat a Supabase Storage con fallback base64
+async function uploadSkuChatImage(file, sku, subsidiary) {
+    if (!supabaseClient) {
+        // Fallback a base64
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${sku}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        const filePath = `${subsidiary}/${fileName}`;
+
+        const { data, error } = await supabaseClient
+            .storage
+            .from('sku_comments_images')
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) {
+            console.warn("Supabase storage upload error, using base64 fallback:", error);
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Obtener URL pública
+        const { data: publicUrlData } = supabaseClient
+            .storage
+            .from('sku_comments_images')
+            .getPublicUrl(filePath);
+
+        return publicUrlData.publicUrl;
+    } catch (e) {
+        console.error("Storage upload exception, using base64 fallback:", e);
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+        });
+    }
+}
+
+// Cargar contadores de comentarios de todos los SKU
+async function loadSkuCommentCounts() {
+    const subsidiary = appData.selectedSubsidiary;
+    if (!subsidiary) return;
+
+    skuCommentCounts = {};
+
+    // 1. Intentar cargar de Supabase
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('comentarios_sku')
+                .select('sku')
+                .eq('subsidiary', subsidiary);
+            
+            if (!error && data) {
+                data.forEach(row => {
+                    skuCommentCounts[row.sku] = (skuCommentCounts[row.sku] || 0) + 1;
+                });
+                return;
+            }
+        } catch(e) {
+            console.error("Error loading SKU comment counts from Supabase:", e);
+        }
+    }
+
+    // 2. Fallback: buscar en localStorage
+    try {
+        const prefix = `sop_sku_comments_${subsidiary}_`;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+                const sku = key.substring(prefix.length);
+                const dataStr = localStorage.getItem(key);
+                if (dataStr) {
+                    const comments = JSON.parse(dataStr);
+                    if (Array.isArray(comments)) {
+                        skuCommentCounts[sku] = comments.length;
+                    }
+                }
+            }
+        }
+    } catch(e) {
+        console.warn("Error scanning localStorage for SKU comment counts:", e);
+    }
+}
+
+// ==========================================================================
 // NUEVA CAPACIDAD: PRIORIZACIÓN AUTOMÁTICA ABC Y ALERTAS COMERCIALES
 // ==========================================================================
+
 
 // Función para calcular la clasificación ABC por valor de demanda (Pareto)
 function calculateABCClassification() {

@@ -2639,9 +2639,113 @@ body {
 .data-table tr:hover td.sku-class-c {
     background-color: rgba(142, 150, 144, 0.16) !important;
 }
+/* ==========================================================================
+   ESTILOS DE COMENTARIOS DE SKU (COLLABORATIVE SKU CHAT)
+   ========================================================================== */
 
+/* Botón de comentarios del SKU en la matriz */
+.btn-comment-sku {
+    background: transparent;
+    border: 1px solid rgba(92, 101, 94, 0.2);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 28px;
+}
 
+.btn-comment-sku:hover {
+    background-color: var(--neon-cyan-glow);
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
 
+/* Burbujas de chat del SKU */
+.sku-chat-bubble {
+    background-color: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: var(--transition-smooth);
+}
 
+.sku-chat-bubble:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+    border-color: var(--border-neon);
+}
 
+.sku-chat-meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(0,0,0,0.04);
+    padding-bottom: 4px;
+}
+
+.sku-chat-author-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sku-chat-author-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.sku-chat-week-badge {
+    font-size: 9px !important;
+    padding: 1.5px 5.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px;
+    border-radius: 4px !important;
+}
+
+.sku-chat-timestamp {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.sku-chat-comment-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Adjunto de imágenes */
+.sku-chat-image-attachment {
+    margin-top: 6px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    max-width: 220px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    background-color: #fcfbfa;
+}
+
+.sku-chat-image-attachment:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    border-color: var(--neon-cyan);
+}
+
+.sku-chat-image-attachment img {
+    width: 100%;
+    max-height: 160px;
+    object-fit: cover;
+    display: block;
+}
 
