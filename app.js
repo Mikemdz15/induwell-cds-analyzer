@@ -1774,6 +1774,11 @@ function renderGridTable() {
             tableBody.appendChild(tr);
         });
     }
+    
+    // Re-iniciar iconos lucide si es necesario
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 }
 
 // Renderizar gráficos con Chart.js
