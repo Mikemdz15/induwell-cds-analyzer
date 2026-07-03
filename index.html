@@ -154,6 +154,26 @@
                         <i data-lucide="shield" style="width: 14px; height: 14px;"></i>
                         Panel Admin
                     </button>
+                    
+                    <!-- Campana de Notificaciones -->
+                    <div id="notifications-bell-wrapper" style="position: relative; margin-right: 8px; display: none;">
+                        <button id="notifications-bell-btn" class="btn btn-outline" style="padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; position: relative;" title="Notificaciones de mención">
+                            <i data-lucide="bell" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                            <span id="notifications-badge" style="display: none; position: absolute; top: -4px; right: -4px; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: 700; align-items: center; justify-content: center; z-index: 2;">0</span>
+                        </button>
+                        
+                        <!-- Panel de Notificaciones Desplegable -->
+                        <div id="notifications-dropdown" class="mention-dropdown" style="position: absolute; top: 38px; right: 0; width: 320px; max-height: 400px; display: none; z-index: 10000; flex-direction: column;">
+                            <div style="padding: 12px; border-bottom: 1px solid var(--border-color); font-weight: 700; font-size: 12px; display: flex; justify-content: space-between; align-items: center; background: #fff; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+                                <span style="color: var(--text-primary);">Menciones</span>
+                                <button id="mark-all-read-btn" style="background: none; border: none; font-size: 10px; color: var(--neon-cyan); cursor: pointer; font-weight: 600; padding: 0;">Marcar todo leído</button>
+                            </div>
+                            <div id="notifications-list" style="display: flex; flex-direction: column; overflow-y: auto; max-height: 320px; background: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="user-display-area" style="display: flex; align-items: center; gap: 8px; margin-right: 8px; font-size: 12px; color: var(--text-secondary);">
                         <span id="user-display-name" style="font-weight: 600; color: var(--text-primary);">--</span>
                         <button id="logout-btn" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; border-color: var(--neon-red); color: var(--neon-red);">
@@ -822,6 +842,9 @@
             </div>
         </div>
     </div>
+
+    <!-- MENÚ DE SUGERENCIAS PARA MENCIONES (@USER) -->
+    <div id="mention-suggestions-dropdown" class="mention-dropdown" style="display: none;"></div>
 
     <!-- Scripts de la Aplicación -->
     <script src="app.js?v=6"></script>

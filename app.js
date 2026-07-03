@@ -382,6 +382,10 @@ async function loadDashboardData() {
         // Cargar comentarios de la semana y subsidiaria actual
         await loadComments();
         
+        // Inicializar sistema de menciones y notificaciones
+        await loadUsersForMentions();
+        initNotificationSystem();
+        
         // Registrar última actualización
         const now = new Date();
         document.getElementById("last-update-time").textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2533,6 +2537,13 @@ async function handleLogin(e) {
 
 // Cerrar sesión
 function handleLogout() {
+    if (notificationPollInterval) {
+        clearInterval(notificationPollInterval);
+        notificationPollInterval = null;
+    }
+    const bellWrapper = document.getElementById("notifications-bell-wrapper");
+    if (bellWrapper) bellWrapper.style.display = "none";
+    
     sessionStorage.removeItem("sop_logged_in_user");
     showNotification("Sesión cerrada correctamente", "info");
     showLoginScreen();
@@ -3580,6 +3591,9 @@ function setupCommentEvents() {
         const addBtn = document.getElementById(`add-comment-${section}-btn`);
         
         if (textEl && addBtn) {
+            // Habilitar menciones @
+            enableMentionsAutocomplete(textEl);
+
             // Evento al escribir: marcar como modificado/sucio
             textEl.addEventListener('input', () => {
                 const statusEl = document.getElementById(`comment-${section}-status`);
@@ -3860,6 +3874,10 @@ async function addComment(section, commentText) {
     }
 
     await loadComments();
+    
+    // Escanear y registrar menciones
+    await handleCommentMentions(commentText, section, null);
+
     showNotification(
         savedInDb ? "Comentario publicado correctamente" : "Comentario guardado localmente (Offline)", 
         "success"
@@ -3889,7 +3907,10 @@ function toggleInlineEdit(commentId, section) {
     const saveBtn = bodyEl.querySelector(".save-edit-btn");
     const textarea = bodyEl.querySelector(".comment-item-edit-textarea");
     
-    if (textarea) textarea.focus();
+    if (textarea) {
+        textarea.focus();
+        enableMentionsAutocomplete(textarea);
+    }
     
     cancelBtn.addEventListener("click", () => {
         bodyEl.innerHTML = currentText;
@@ -4032,6 +4053,14 @@ let activeSkuChat = { sku: null, name: null, subsidiary: null };
 let skuCommentCounts = {};
 let selectedSkuChatFile = null;
 
+// Variables de menciones y notificaciones
+let allUsersCached = [];
+let mentionActiveTextarea = null;
+let mentionSearchQuery = "";
+let mentionStartIndex = -1;
+let mentionSelectedIndex = 0;
+let notificationPollInterval = null;
+
 // Configurar eventos para el chat del SKU
 function setupSkuCommentEvents() {
     const modal = document.getElementById("sku-comments-modal");
@@ -4090,8 +4119,14 @@ function setupSkuCommentEvents() {
     }
 
     if (chatInput) {
+        enableMentionsAutocomplete(chatInput);
         chatInput.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {
+                const dropdown = document.getElementById("mention-suggestions-dropdown");
+                if (dropdown && dropdown.style.display !== "none") {
+                    // Si el menú de menciones está abierto, no enviar mensaje con Enter
+                    return;
+                }
                 e.preventDefault();
                 sendSkuComment();
             }
@@ -4354,6 +4389,9 @@ async function sendSkuComment() {
     
     await loadSkuChatHistory(sku, subsidiary);
     
+    // Escanear y registrar menciones
+    await handleCommentMentions(text, 'sku', sku);
+    
     // Refrescar tabla para actualizar insignias
     renderGridTable();
     
@@ -4482,7 +4520,10 @@ function toggleSkuInlineEdit(commentId) {
     const saveBtn = bodyEl.querySelector(".save-edit-btn");
     const textarea = bodyEl.querySelector(".comment-item-edit-textarea");
     
-    if (textarea) textarea.focus();
+    if (textarea) {
+        textarea.focus();
+        enableMentionsAutocomplete(textarea);
+    }
     
     cancelBtn.addEventListener("click", () => {
         bodyEl.innerHTML = currentText;
@@ -4604,6 +4645,498 @@ async function deleteSkuComment(commentId) {
     renderGridTable();
     
     showNotification("Comentario de SKU eliminado", "success");
+}
+
+}
+
+// Cargar lista completa de usuarios para menciones
+async function loadUsersForMentions() {
+    if (!supabaseClient) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('usuarios')
+            .select('username, role, companies');
+        if (!error && data) {
+            allUsersCached = data;
+        }
+    } catch(e) {
+        console.error("Error al cargar usuarios para menciones:", e);
+    }
+}
+
+// Habilitar autocompletado de menciones @ en un textarea
+function enableMentionsAutocomplete(textarea) {
+    if (!textarea) return;
+    
+    // Evitar doble vinculación
+    if (textarea.dataset.mentionsEnabled) return;
+    textarea.dataset.mentionsEnabled = "true";
+    
+    textarea.addEventListener("input", (e) => {
+        const text = textarea.value;
+        const selectionEnd = textarea.selectionEnd;
+        
+        const textBeforeCursor = text.substring(0, selectionEnd);
+        const lastSpace = Math.max(textBeforeCursor.lastIndexOf(" "), textBeforeCursor.lastIndexOf("\n"));
+        const currentWord = textBeforeCursor.substring(lastSpace + 1);
+        
+        if (currentWord.startsWith("@")) {
+            mentionActiveTextarea = textarea;
+            mentionStartIndex = lastSpace + 1;
+            mentionSearchQuery = currentWord.substring(1);
+            showMentionDropdown(textarea, mentionSearchQuery);
+        } else {
+            hideMentionDropdown();
+        }
+    });
+    
+    textarea.addEventListener("keydown", (e) => {
+        const dropdown = document.getElementById("mention-suggestions-dropdown");
+        if (!dropdown || dropdown.style.display === "none") return;
+        
+        const items = dropdown.querySelectorAll(".mention-item");
+        if (items.length === 0) return;
+        
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            mentionSelectedIndex = (mentionSelectedIndex + 1) % items.length;
+            updateMentionSelection(items);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            mentionSelectedIndex = (mentionSelectedIndex - 1 + items.length) % items.length;
+            updateMentionSelection(items);
+        } else if (e.key === "Enter" || e.key === "Tab") {
+            e.preventDefault();
+            insertSelectedMention(items[mentionSelectedIndex].dataset.username);
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            hideMentionDropdown();
+        }
+    });
+    
+    textarea.addEventListener("blur", () => {
+        setTimeout(() => {
+            hideMentionDropdown();
+        }, 200);
+    });
+}
+
+// Mostrar el menú flotante con las sugerencias de menciones
+function showMentionDropdown(textarea, query) {
+    const dropdown = document.getElementById("mention-suggestions-dropdown");
+    if (!dropdown) return;
+    
+    const company = appData.selectedSubsidiary;
+    if (!company) return;
+    
+    // Filtrar usuarios de la empresa actual (o administradores)
+    const filteredUsers = allUsersCached.filter(u => {
+        const matchesCompany = u.companies && (u.companies.includes(company) || u.role === 'admin');
+        const matchesQuery = u.username.toLowerCase().includes(query.toLowerCase());
+        const isSelf = loggedInUser && u.username === loggedInUser.username;
+        return matchesCompany && matchesQuery && !isSelf;
+    });
+    
+    if (filteredUsers.length === 0) {
+        dropdown.style.display = "none";
+        return;
+    }
+    
+    mentionSelectedIndex = 0;
+    dropdown.innerHTML = "";
+    
+    filteredUsers.forEach((user, index) => {
+        const item = document.createElement("div");
+        item.className = `mention-item ${index === 0 ? 'active' : ''}`;
+        item.dataset.username = user.username;
+        
+        const roleLabels = {
+            admin: "Director",
+            gerente: "Gerente",
+            user: "Operador",
+            visor: "Visor"
+        };
+        const roleText = roleLabels[user.role] || user.role;
+        
+        item.innerHTML = `
+            <span style="font-weight: 600;">@${user.username}</span>
+            <span class="mention-role-badge" style="background-color: ${user.role === 'admin' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(26, 115, 232, 0.1)'}; color: ${user.role === 'admin' ? 'var(--ai-purple)' : 'var(--neon-cyan)'};">${roleText}</span>
+        `;
+        
+        item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            insertSelectedMention(user.username);
+        });
+        
+        dropdown.appendChild(item);
+    });
+    
+    const rect = textarea.getBoundingClientRect();
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
+    dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    dropdown.style.width = `${rect.width}px`;
+    dropdown.style.display = "flex";
+}
+
+// Actualizar el elemento de mención activo en la lista
+function updateMentionSelection(items) {
+    items.forEach((item, index) => {
+        if (index === mentionSelectedIndex) {
+            item.classList.add("active");
+            item.scrollIntoView({ block: "nearest" });
+        } else {
+            item.classList.remove("active");
+        }
+    });
+}
+
+// Insertar la mención seleccionada en el textarea
+function insertSelectedMention(username) {
+    if (!mentionActiveTextarea) return;
+    
+    const textarea = mentionActiveTextarea;
+    const text = textarea.value;
+    const selectionEnd = textarea.selectionEnd;
+    
+    const before = text.substring(0, mentionStartIndex);
+    const after = text.substring(selectionEnd);
+    
+    const mentionString = `@${username} `;
+    textarea.value = before + mentionString + after;
+    
+    textarea.focus();
+    const newCursorPos = mentionStartIndex + mentionString.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    
+    // Redimensionar si es un auto-expanding textarea
+    if (textarea.scrollHeight > textarea.clientHeight) {
+        textarea.style.height = "";
+        textarea.style.height = textarea.scrollHeight + "px";
+    }
+    
+    hideMentionDropdown();
+}
+
+// Ocultar el dropdown de menciones
+function hideMentionDropdown() {
+    const dropdown = document.getElementById("mention-suggestions-dropdown");
+    if (dropdown) {
+        dropdown.style.display = "none";
+    }
+    mentionActiveTextarea = null;
+}
+
+// Escanear el texto de un comentario y generar registros de notificación
+async function handleCommentMentions(commentText, section, sku) {
+    const mentionRegex = /@([a-zA-Z0-9.\-_]+)/g;
+    let match;
+    const mentionedUsers = [];
+    
+    while ((match = mentionRegex.exec(commentText)) !== null) {
+        const username = match[1];
+        if (!mentionedUsers.includes(username)) {
+            mentionedUsers.push(username);
+        }
+    }
+    
+    if (mentionedUsers.length === 0) return;
+    
+    const sender = loggedInUser ? loggedInUser.username : 'desconocido';
+    const subsidiary = appData.selectedSubsidiary;
+    const week = appData.selectedWeekName || 'Semana N/A';
+    
+    for (const recipient of mentionedUsers) {
+        // Confirmar que el usuario sea válido
+        const userExists = allUsersCached.some(u => u.username === recipient);
+        if (!userExists) continue;
+        
+        const notificationObj = {
+            user_recipient: recipient,
+            user_sender: sender,
+            sku: sku || null,
+            subsidiary: subsidiary,
+            week: week,
+            comment_text: commentText,
+            is_read: false,
+            section: section
+        };
+        
+        // 1. Guardar en Supabase
+        if (supabaseClient) {
+            try {
+                await supabaseClient
+                    .from('notificaciones')
+                    .insert([notificationObj]);
+            } catch(e) {
+                console.error("Error al guardar notificación en Supabase:", e);
+            }
+        }
+        
+        // 2. Guardar copia local de respaldo
+        const localKey = `sop_notifications_${recipient}`;
+        try {
+            let localNotifications = [];
+            const existing = localStorage.getItem(localKey);
+            if (existing) {
+                localNotifications = JSON.parse(existing);
+            }
+            localNotifications.unshift({
+                ...notificationObj,
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                created_at: new Date().toISOString()
+            });
+            localStorage.setItem(localKey, JSON.stringify(localNotifications));
+        } catch(e) {
+            console.warn("Error al guardar respaldo local de notificación:", e);
+        }
+    }
+}
+
+// Inicializar el sistema de notificaciones (Campanita)
+function initNotificationSystem() {
+    if (!loggedInUser) return;
+    
+    const bellWrapper = document.getElementById("notifications-bell-wrapper");
+    const bellBtn = document.getElementById("notifications-bell-btn");
+    const dropdown = document.getElementById("notifications-dropdown");
+    const markAllBtn = document.getElementById("mark-all-read-btn");
+    
+    if (bellWrapper) bellWrapper.style.display = "block";
+    
+    if (bellBtn && dropdown) {
+        bellBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isHidden = dropdown.style.display === "none";
+            dropdown.style.display = isHidden ? "flex" : "none";
+            if (isHidden) {
+                loadNotifications();
+            }
+        };
+    }
+    
+    document.addEventListener("click", (e) => {
+        if (dropdown && !dropdown.contains(e.target) && bellBtn && !bellBtn.contains(e.target)) {
+            dropdown.style.display = "none";
+        }
+    });
+    
+    if (markAllBtn) {
+        markAllBtn.onclick = (e) => {
+            e.stopPropagation();
+            markAllNotificationsRead();
+        };
+    }
+    
+    loadNotifications();
+    
+    if (notificationPollInterval) clearInterval(notificationPollInterval);
+    notificationPollInterval = setInterval(loadNotifications, 30000);
+}
+
+// Cargar y mostrar notificaciones del usuario activo
+async function loadNotifications() {
+    if (!loggedInUser) return;
+    
+    const badge = document.getElementById("notifications-badge");
+    const list = document.getElementById("notifications-list");
+    if (!list) return;
+    
+    let notifications = [];
+    let loadedFromDb = false;
+    
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('notificaciones')
+                .select('*')
+                .eq('user_recipient', loggedInUser.username)
+                .order('created_at', { ascending: false });
+            if (!error && data) {
+                notifications = data;
+                loadedFromDb = true;
+            }
+        } catch(e) {
+            console.error("Error al cargar notificaciones de Supabase:", e);
+        }
+    }
+    
+    if (!loadedFromDb) {
+        const localKey = `sop_notifications_${loggedInUser.username}`;
+        try {
+            const existing = localStorage.getItem(localKey);
+            if (existing) {
+                notifications = JSON.parse(existing);
+            }
+        } catch(e) {
+            console.error("Error al leer notificaciones locales:", e);
+        }
+    }
+    
+    notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = "flex";
+        } else {
+            badge.style.display = "none";
+        }
+    }
+    
+    list.innerHTML = "";
+    if (notifications.length === 0) {
+        list.innerHTML = `<div class="notification-empty-state">No tienes menciones.</div>`;
+        return;
+    }
+    
+    notifications.forEach(n => {
+        const item = document.createElement("div");
+        item.className = `notification-item ${n.is_read ? '' : 'unread'}`;
+        
+        const dateObj = new Date(n.created_at);
+        const timeText = isNaN(dateObj.getTime())
+            ? "Reciente"
+            : dateObj.toLocaleDateString() + " " + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+        const sectionLabel = n.section === 'sku' ? 'Chat SKU' : n.section.toUpperCase();
+        const refText = n.sku ? `SKU: ${n.sku}` : `Sección: ${sectionLabel}`;
+        
+        item.innerHTML = `
+            <div class="notification-item-header">
+                <span class="notification-item-sender">@${n.user_sender}</span>
+                <span class="notification-item-time">${timeText}</span>
+            </div>
+            <div class="notification-item-body" style="font-weight: 500; font-size: 11.5px; margin: 2px 0;">${n.comment_text}</div>
+            <div class="notification-item-meta">
+                <span class="notification-meta-pill">${n.subsidiary}</span>
+                <span class="notification-meta-pill">${n.week}</span>
+                <span class="notification-meta-pill" style="background-color: var(--neon-cyan); color: white;">${refText}</span>
+            </div>
+        `;
+        
+        item.onclick = async (e) => {
+            e.stopPropagation();
+            await handleNotificationClick(n);
+        };
+        
+        list.appendChild(item);
+    });
+}
+
+// Manejar clic en una notificación
+async function handleNotificationClick(n) {
+    const dropdown = document.getElementById("notifications-dropdown");
+    if (dropdown) dropdown.style.display = "none";
+    
+    // 1. Marcar como leída
+    if (supabaseClient) {
+        try {
+            const queryId = isNaN(n.id) ? n.id : parseInt(n.id, 10);
+            await supabaseClient
+                .from('notificaciones')
+                .update({ is_read: true })
+                .eq('id', queryId);
+        } catch(e) {
+            console.error("Error al marcar notificación como leída:", e);
+        }
+    }
+    
+    const localKey = `sop_notifications_${loggedInUser.username}`;
+    try {
+        let localNotifications = [];
+        const existing = localStorage.getItem(localKey);
+        if (existing) {
+            localNotifications = JSON.parse(existing);
+        }
+        localNotifications = localNotifications.map(item => {
+            if (String(item.id) === String(n.id)) {
+                item.is_read = true;
+            }
+            return item;
+        });
+        localStorage.setItem(localKey, JSON.stringify(localNotifications));
+    } catch(e) {
+        console.warn("Error al actualizar notificación local:", e);
+    }
+    
+    await loadNotifications();
+    
+    // 2. Comprobar permisos para cambiar de empresa
+    const isAllowed = loggedInUser.role === 'admin' || (loggedInUser.companies && loggedInUser.companies.includes(n.subsidiary));
+    if (!isAllowed) {
+        showNotification(`No tienes acceso a la subsidiaria ${n.subsidiary}`, "error");
+        return;
+    }
+    
+    let contextChanged = false;
+    
+    if (appData.selectedSubsidiary !== n.subsidiary) {
+        appData.selectedSubsidiary = n.subsidiary;
+        sessionStorage.setItem("sop_selected_subsidiary", n.subsidiary);
+        contextChanged = true;
+    }
+    
+    if (appData.selectedWeekName !== n.week) {
+        appData.selectedWeekName = n.week;
+        sessionStorage.setItem("sop_selected_week", n.week);
+        contextChanged = true;
+    }
+    
+    if (contextChanged) {
+        showNotification("Cargando contexto de la mención...", "info");
+        await loadDashboardData();
+    }
+    
+    // 3. Abrir modal de SKU o enfocar sección
+    if (n.section === 'sku' && n.sku) {
+        openSkuChat(n.sku, "Artículo mencionado", n.subsidiary);
+    } else {
+        const sectionEl = document.getElementById(`comments-${n.section}-list`);
+        if (sectionEl) {
+            sectionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            sectionEl.style.outline = "2px dashed var(--neon-cyan)";
+            setTimeout(() => {
+                sectionEl.style.outline = "none";
+            }, 3000);
+        }
+    }
+}
+
+// Marcar todas las notificaciones como leídas
+async function markAllNotificationsRead() {
+    if (!loggedInUser) return;
+    
+    if (supabaseClient) {
+        try {
+            await supabaseClient
+                .from('notificaciones')
+                .update({ is_read: true })
+                .eq('user_recipient', loggedInUser.username)
+                .eq('is_read', false);
+        } catch(e) {
+            console.error("Error al marcar todas las notificaciones:", e);
+        }
+    }
+    
+    const localKey = `sop_notifications_${loggedInUser.username}`;
+    try {
+        let localNotifications = [];
+        const existing = localStorage.getItem(localKey);
+        if (existing) {
+            localNotifications = JSON.parse(existing);
+        }
+        localNotifications = localNotifications.map(item => {
+            item.is_read = true;
+            return item;
+        });
+        localStorage.setItem(localKey, JSON.stringify(localNotifications));
+    } catch(e) {
+        console.warn("Error al marcar todas localmente:", e);
+    }
+    
+    await loadNotifications();
+    showNotification("Todas las menciones marcadas como leídas", "success");
 }
 
 // ==========================================================================
