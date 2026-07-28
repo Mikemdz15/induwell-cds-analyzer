@@ -25,7 +25,18 @@ let appData = {
         prodSemanal: 0,
         alertasActivas: 0,
         skusMonitoreados: 0
-    }
+    },
+    alphalabInventory: [],
+    alphalabInventoryKPIs: {
+        totalValue: 0,
+        totalSkus: 0,
+        totalTarimas: 0,
+        totalNoDisponible: 0,
+        totalNoDisponibleValue: 0,
+        totalDisponible: 0
+    },
+    currentSubTab: "planeacion",
+    inventorySearchQuery: ""
 };
 
 // Supabase Connection Settings (Se actualiza directamente desde el chat)
@@ -121,6 +132,30 @@ function initUI() {
             appData.searchQuery = query;
             sessionStorage.setItem("sop_search_query", query);
             applyFilters();
+        });
+    }
+
+    // Pestañas de Alphalab (Planeación vs Inventario)
+    const tabPlaneacion = document.getElementById("tab-sop-planeacion");
+    if (tabPlaneacion) {
+        tabPlaneacion.addEventListener("click", () => {
+            switchAlphalabTab("planeacion");
+        });
+    }
+
+    const tabInventario = document.getElementById("tab-inventario-actual");
+    if (tabInventario) {
+        tabInventario.addEventListener("click", () => {
+            switchAlphalabTab("inventario");
+        });
+    }
+
+    // Buscador de Inventario Actual
+    const invSearchInput = document.getElementById("inv-search-input");
+    if (invSearchInput) {
+        invSearchInput.addEventListener("input", (e) => {
+            appData.inventorySearchQuery = e.target.value.trim().toLowerCase();
+            renderAlphalabInventory();
         });
     }
 
@@ -335,6 +370,7 @@ async function loadDashboardData() {
         const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true, cellNF: true, cellText: true });
         currentWorkbook = workbook;
         parseInformacionSheet(workbook);
+        parseAlphalabInventory(workbook);
         
         // Filtrar las hojas que contienen la planeación de la semana (ej. "sem" o "semana")
         appData.weeks = workbook.SheetNames.filter(name => {
@@ -936,6 +972,18 @@ function applyFilters() {
     renderGridTable();
     renderTriageAlertsPanel();
     renderCharts();
+
+    // Controlar visibilidad de pestañas de Alphalab
+    const alphalabTabs = document.getElementById("alphalab-tabs-container");
+    if (alphalabTabs) {
+        if (appData.selectedSubsidiary === "ALPHALAB") {
+            alphalabTabs.style.display = "block";
+            switchAlphalabTab(appData.currentSubTab);
+        } else {
+            alphalabTabs.style.display = "none";
+            switchAlphalabTab("planeacion");
+        }
+    }
 }
 
 // Recalcular indicadores y renderizar medidores circulares + sparklines
@@ -5582,5 +5630,188 @@ Sé muy conciso, directo, clínico y ejecutivo. No uses introducciones formales 
         console.error("Gemini ABC Error:", error);
         container.innerHTML = `<span style="color: var(--neon-red);">⚠️ Error al comunicarse con Gemini: ${error.message}. Verifica tu API Key.</span>`;
     }
+}
+
+// ==========================================================================
+// CAPACIDAD: INVENTARIO ACTUAL DE ALPHALAB (Pestaña Independiente)
+// ==========================================================================
+
+function parseAlphalabInventory(workbook) {
+    appData.alphalabInventory = [];
+    appData.alphalabInventoryKPIs = {
+        totalValue: 0,
+        totalSkus: 0,
+        totalTarimas: 0,
+        totalNoDisponible: 0,
+        totalNoDisponibleValue: 0,
+        totalDisponible: 0
+    };
+
+    if (!workbook) return;
+
+    const sheetName = workbook.SheetNames.find(n => n.toLowerCase().replace(/\s+/g, '') === 'invalphalab');
+    if (!sheetName) {
+        console.warn("No se encontró la hoja de inventario 'Inv ALphalab'");
+        return;
+    }
+
+    const sheet = workbook.Sheets[sheetName];
+    const ref = sheet['!ref'];
+    if (!ref) return;
+    const range = XLSX.utils.decode_range(ref);
+    const maxRow = range.e.r + 1;
+
+    for (let r = 1; r < maxRow; r++) {
+        const no = getCellValue(sheet, 0, r, null);
+        const sku = getCellText(sheet, 2, r, "").trim();
+        
+        // Si no hay No. o SKU, saltar fila
+        if (!no || !sku || sku === "" || sku.toLowerCase() === "sku") continue;
+
+        const clasificacion = getCellText(sheet, 1, r, "N/A").trim();
+        const descripcion = getCellText(sheet, 3, r, "N/A").trim();
+        const udm = getCellText(sheet, 4, r, "N/A").trim();
+        const costo_unitario = getCellValue(sheet, 5, r, 0);
+        const inv_inicial = getCellValue(sheet, 6, r, 0);
+        const compras = getCellValue(sheet, 7, r, 0);
+        const consumos = getCellValue(sheet, 8, r, 0);
+        const tarimas = getCellValue(sheet, 9, r, 0);
+        const inv_teorico = getCellValue(sheet, 10, r, 0);
+        const valuacion_total = getCellValue(sheet, 11, r, 0);
+        const notas_credito = getCellValue(sheet, 12, r, 0);
+        const notas_credito_val = getCellValue(sheet, 13, r, 0);
+        const inv_no_disp = getCellValue(sheet, 14, r, 0);
+        const inv_no_disp_val = getCellValue(sheet, 15, r, 0);
+        const bodega_espino = getCellValue(sheet, 16, r, 0);
+        const bodega_espino_val = getCellValue(sheet, 17, r, 0);
+        const inv_disponible = getCellValue(sheet, 18, r, 0);
+
+        const item = {
+            no,
+            clasificacion,
+            sku,
+            descripcion,
+            udm,
+            costo_unitario: Number(costo_unitario) || 0,
+            inv_inicial: Number(inv_inicial) || 0,
+            compras: Number(compras) || 0,
+            consumos: Number(consumos) || 0,
+            tarimas: Number(tarimas) || 0,
+            inv_teorico: Number(inv_teorico) || 0,
+            valuacion_total: Number(valuacion_total) || 0,
+            notas_credito: Number(notas_credito) || 0,
+            notas_credito_val: Number(notas_credito_val) || 0,
+            inv_no_disp: Number(inv_no_disp) || 0,
+            inv_no_disp_val: Number(inv_no_disp_val) || 0,
+            bodega_espino: Number(bodega_espino) || 0,
+            bodega_espino_val: Number(bodega_espino_val) || 0,
+            inv_disponible: Number(inv_disponible) || 0
+        };
+
+        appData.alphalabInventory.push(item);
+        
+        // Acumular KPIs
+        appData.alphalabInventoryKPIs.totalValue += item.valuacion_total;
+        appData.alphalabInventoryKPIs.totalTarimas += item.tarimas;
+        appData.alphalabInventoryKPIs.totalNoDisponible += item.inv_no_disp;
+        appData.alphalabInventoryKPIs.totalNoDisponibleValue += item.inv_no_disp_val;
+        appData.alphalabInventoryKPIs.totalDisponible += item.inv_disponible;
+    }
+    
+    appData.alphalabInventoryKPIs.totalSkus = appData.alphalabInventory.length;
+}
+
+// Cambiar pestañas internas de Alphalab
+function switchAlphalabTab(tabName) {
+    appData.currentSubTab = tabName;
+    
+    const tabPlaneacion = document.getElementById("tab-sop-planeacion");
+    const tabInventario = document.getElementById("tab-inventario-actual");
+    const sopDashboardViews = document.getElementById("sop-dashboard-views");
+    const invPanel = document.getElementById("alphalab-inventory-panel");
+    
+    if (!tabPlaneacion || !tabInventario || !sopDashboardViews || !invPanel) return;
+    
+    if (tabName === "inventario") {
+        tabPlaneacion.classList.remove("active");
+        tabPlaneacion.style.borderBottomColor = "transparent";
+        
+        tabInventario.classList.add("active");
+        tabInventario.style.borderBottomColor = "var(--neon-cyan)";
+        
+        sopDashboardViews.style.display = "none";
+        invPanel.style.display = "block";
+        
+        renderAlphalabInventory();
+    } else {
+        tabInventario.classList.remove("active");
+        tabInventario.style.borderBottomColor = "transparent";
+        
+        tabPlaneacion.classList.add("active");
+        tabPlaneacion.style.borderBottomColor = "var(--neon-cyan)";
+        
+        sopDashboardViews.style.display = "block";
+        invPanel.style.display = "none";
+    }
+}
+
+// Renderizar la tabla y KPIs del Inventario
+function renderAlphalabInventory() {
+    // 1. Mostrar KPIs en pantalla
+    const kpiVal = document.getElementById("inv-kpi-value");
+    const kpiSkus = document.getElementById("inv-kpi-skus");
+    const kpiTarimas = document.getElementById("inv-kpi-tarimas");
+    const kpiDisponible = document.getElementById("inv-kpi-disponible");
+    const tbody = document.getElementById("alphalab-inventory-body");
+    
+    if (kpiVal) kpiVal.textContent = appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    if (kpiSkus) kpiSkus.textContent = appData.alphalabInventoryKPIs.totalSkus;
+    if (kpiTarimas) kpiTarimas.textContent = Math.round(appData.alphalabInventoryKPIs.totalTarimas).toLocaleString();
+    if (kpiDisponible) kpiDisponible.textContent = Math.round(appData.alphalabInventoryKPIs.totalDisponible).toLocaleString() + " uds/kg";
+
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    
+    const query = appData.inventorySearchQuery.trim().toLowerCase();
+    
+    // Filtrar inventario por la búsqueda
+    const filtered = appData.alphalabInventory.filter(item => {
+        return item.sku.toLowerCase().includes(query) || 
+               item.descripcion.toLowerCase().includes(query) || 
+               item.clasificacion.toLowerCase().includes(query);
+    });
+    
+    // Actualizar conteos
+    const countShowing = document.getElementById("inv-showing-count");
+    const countTotal = document.getElementById("inv-total-count");
+    if (countShowing) countShowing.textContent = filtered.length;
+    if (countTotal) countTotal.textContent = appData.alphalabInventory.length;
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted); padding: 30px;">No se encontraron artículos con la búsqueda.</td></tr>`;
+        return;
+    }
+    
+    filtered.forEach(item => {
+        const tr = document.createElement("tr");
+        
+        tr.innerHTML = `
+            <td style="color: var(--text-muted);">${item.no}</td>
+            <td><span class="cell-badge cell-neutral">${item.clasificacion}</span></td>
+            <td style="font-weight: 700; color: var(--neon-cyan);">${item.sku}</td>
+            <td style="white-space: normal; max-width: 250px;">${item.descripcion}</td>
+            <td>${item.udm}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums;">${item.costo_unitario.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums;">${Math.round(item.inv_inicial).toLocaleString()}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; color: var(--neon-cyan); font-weight: 600;">${Math.round(item.compras).toLocaleString()}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; color: var(--neon-red);">${Math.round(item.consumos).toLocaleString()}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: 600;">${Math.round(item.tarimas).toLocaleString()}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums;">${Math.round(item.inv_teorico).toLocaleString()}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; color: var(--neon-green); font-weight: 700;">${Math.round(item.inv_disponible).toLocaleString()}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: #ffffff;">${item.valuacion_total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
 }
 

@@ -197,8 +197,18 @@
                 </div>
             </div>
 
-            <!-- PANEL HÉROE PRINCIPAL DE DIAGNÓSTICO S&OP -->
-            <section class="sop-hero-panel">
+            <!-- TABS DE NAVEGACIÓN DE ALPHALAB -->
+            <div id="alphalab-tabs-container" class="subsidiary-filter-wrapper" style="display: none; margin-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 0;">
+                <div class="segment-control" style="background: transparent; box-shadow: none; border-radius: 0; padding: 0; gap: 20px;">
+                    <button id="tab-sop-planeacion" class="segment-btn active" style="border-radius: 0; border: none; border-bottom: 3px solid var(--neon-cyan); background: transparent; padding: 8px 16px; font-weight: 700;">Planeación S&OP</button>
+                    <button id="tab-inventario-actual" class="segment-btn" style="border-radius: 0; border: none; border-bottom: 3px solid transparent; background: transparent; padding: 8px 16px; font-weight: 700;">Inventario Actual</button>
+                </div>
+            </div>
+
+            <!-- CONTENEDOR DE VISTAS DE PLANEACIÓN S&OP (Se oculta al cambiar a Inventario Actual) -->
+            <div id="sop-dashboard-views">
+                <!-- PANEL HÉROE PRINCIPAL DE DIAGNÓSTICO S&OP -->
+                <section class="sop-hero-panel">
                 <div class="hero-title-area">
                     <h2 id="hero-title">Gestión y Triage de Desviaciones S&OP</h2>
                     <p id="hero-desc">Monitoreo quirúrgico de nivel de servicio OTIF y cumplimiento del plan de producción diaria para Alphalab y Velaluz.</p>
@@ -617,8 +627,112 @@
                     </button>
                 </div>
             </section>
+        </div> <!-- Fin de #sop-dashboard-views -->
 
-        </main>
+        <!-- SECCIÓN: INVENTARIO ACTUAL DE ALPHALAB -->
+        <div id="alphalab-inventory-panel" style="display: none; margin-top: 20px;">
+            <!-- Grid de KPIs de Inventario -->
+            <div class="kpi-grid">
+                <!-- KPI 1: Valor del Inventario -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title">Valor del Inventario</span>
+                            <p class="kpi-desc">Valuación total a costo unitario</p>
+                        </div>
+                        <i data-lucide="dollar-sign" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num" id="inv-kpi-value">$0.00</div>
+                    </div>
+                </div>
+                
+                <!-- KPI 2: SKUs Totales -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title">SKUs en Almacén</span>
+                            <p class="kpi-desc">Artículos distintos con stock</p>
+                        </div>
+                        <i data-lucide="package" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num" id="inv-kpi-skus">0</div>
+                    </div>
+                </div>
+
+                <!-- KPI 3: Tarimas en Planta -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title">Total de Tarimas</span>
+                            <p class="kpi-desc">Espacio ocupado en almacén</p>
+                        </div>
+                        <i data-lucide="layers" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num" id="inv-kpi-tarimas">0</div>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Stock Disponible -->
+                <div class="kpi-card">
+                    <div class="kpi-label-area">
+                        <div>
+                            <span class="kpi-title">Stock Disponible</span>
+                            <p class="kpi-desc">Inventario apto para operación</p>
+                        </div>
+                        <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
+                    </div>
+                    <div class="kpi-value-area">
+                        <div class="kpi-num" id="inv-kpi-disponible">0 <span class="target-val">pzas/kg</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barra de búsqueda rápida (Lupa) -->
+            <div class="controls-panel" style="margin-top: 24px; padding: 15px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;">
+                    <div class="search-wrapper" style="flex: 1; max-width: 500px;">
+                        <i data-lucide="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+                        <input type="text" id="inv-search-input" class="search-input" autocomplete="off" placeholder="Buscar por SKU, descripción o clasificación del producto...">
+                    </div>
+                    <div id="inv-filter-info" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">
+                        Mostrando: <strong id="inv-showing-count" style="color: var(--text-primary);">0</strong> de <strong id="inv-total-count" style="color: var(--text-primary);">0</strong> productos
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Detalle del Inventario -->
+            <section class="grid-container" style="margin-top: 20px; padding: 0;">
+                <div class="table-wrapper" style="max-height: 500px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Clasificación</th>
+                                <th>SKU</th>
+                                <th>Descripción</th>
+                                <th>UDM</th>
+                                <th style="text-align: right;">Costo Unitario</th>
+                                <th style="text-align: right;">Inv. Inicial</th>
+                                <th style="text-align: right;">Compras</th>
+                                <th style="text-align: right;">Consumos</th>
+                                <th style="text-align: right;">Tarimas</th>
+                                <th style="text-align: right;">Inv. Teórico</th>
+                                <th style="text-align: right;">Inv. Disponible</th>
+                                <th style="text-align: right;">Valuación Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alphalab-inventory-body">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+    </main>
 
         <!-- BARRA LATERAL (ANALISTA CLÍNICO DE IA) -->
         <aside class="sidebar">
