@@ -726,12 +726,18 @@
                 </div>
             </div>
 
-            <!-- Barra de búsqueda rápida (Lupa) -->
+            <!-- Barra de búsqueda rápida (Lupa) y Exportar -->
             <div class="controls-panel" style="margin-top: 24px; padding: 15px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;">
-                    <div class="search-wrapper" style="flex: 1; max-width: 500px;">
-                        <i data-lucide="search" class="search-icon" style="width: 14px; height: 14px;"></i>
-                        <input type="text" id="inv-search-input" class="search-input" autocomplete="off" placeholder="Buscar por SKU, descripción o clasificación del producto...">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 16px; flex: 1; min-width: 300px;">
+                        <div class="search-wrapper" style="flex: 1; max-width: 500px;">
+                            <i data-lucide="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+                            <input type="text" id="inv-search-input" class="search-input" autocomplete="off" placeholder="Buscar por SKU, descripción o clasificación del producto...">
+                        </div>
+                        <button id="export-inventory-btn" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer; height: 36px; border: 1px solid var(--border-color); border-radius: 6px; background-color: var(--bg-card-hover); color: var(--text-primary); transition: var(--transition-smooth);">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+                            <span>Exportar a Excel</span>
+                        </button>
                     </div>
                     <div id="inv-filter-info" style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">
                         Mostrando: <strong id="inv-showing-count" style="color: var(--text-primary);">0</strong> de <strong id="inv-total-count" style="color: var(--text-primary);">0</strong> productos
@@ -744,20 +750,20 @@
                 <div class="table-wrapper" style="max-height: 500px; overflow-y: auto;">
                     <table class="data-table">
                         <thead>
-                            <tr>
-                                <th>No.</th>
-                                <th>Clasificación</th>
-                                <th>SKU</th>
-                                <th>Descripción</th>
-                                <th>UDM</th>
-                                <th style="text-align: right;">Costo Unitario</th>
-                                <th style="text-align: right;">Inv. Inicial</th>
-                                <th style="text-align: right;">Compras</th>
-                                <th style="text-align: right;">Consumos</th>
-                                <th style="text-align: right;">Tarimas</th>
-                                <th style="text-align: right;">Inv. Teórico</th>
-                                <th style="text-align: right;">Valuación Total</th>
-                                <th style="text-align: right;">Inv. Disponible</th>
+                            <tr id="alphalab-inventory-header">
+                                <th data-sort-key="no" style="cursor: pointer;">No. <span></span></th>
+                                <th data-sort-key="clasificacion" style="cursor: pointer;">Clasificación <span></span></th>
+                                <th data-sort-key="sku" style="cursor: pointer;">SKU <span></span></th>
+                                <th data-sort-key="descripcion" style="cursor: pointer;">Descripción <span></span></th>
+                                <th data-sort-key="udm" style="cursor: pointer;">UDM <span></span></th>
+                                <th data-sort-key="costo_unitario" style="cursor: pointer; text-align: right;">Costo Unitario <span></span></th>
+                                <th data-sort-key="inv_inicial" style="cursor: pointer; text-align: right;">Inv. Inicial <span></span></th>
+                                <th data-sort-key="compras" style="cursor: pointer; text-align: right;">Compras <span></span></th>
+                                <th data-sort-key="consumos" style="cursor: pointer; text-align: right;">Consumos <span></span></th>
+                                <th data-sort-key="tarimas" style="cursor: pointer; text-align: right;">Tarimas <span></span></th>
+                                <th data-sort-key="inv_teorico" style="cursor: pointer; text-align: right;">Inv. Teórico <span></span></th>
+                                <th data-sort-key="valuacion_total" style="cursor: pointer; text-align: right;">Valuación Total <span></span></th>
+                                <th data-sort-key="inv_disponible" style="cursor: pointer; text-align: right;">Inv. Disponible <span></span></th>
                             </tr>
                         </thead>
                         <tbody id="alphalab-inventory-body">

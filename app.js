@@ -38,7 +38,9 @@ let appData = {
         prodTerminadoValue: 0
     },
     currentSubTab: "planeacion",
-    inventorySearchQuery: ""
+    inventorySearchQuery: "",
+    inventorySortKey: "no",
+    inventorySortDirection: "asc"
 };
 
 // Supabase Connection Settings (Se actualiza directamente desde el chat)
@@ -319,6 +321,24 @@ function initUI() {
             if (th) {
                 const key = th.dataset.sortKey;
                 handleDeviationsSort(key);
+            }
+        });
+    }
+
+    // Botón de Exportar Inventario a Excel
+    const exportInventoryBtn = document.getElementById("export-inventory-btn");
+    if (exportInventoryBtn) {
+        exportInventoryBtn.addEventListener("click", exportAlphalabInventoryToExcel);
+    }
+
+    // Delegación de eventos para la ordenación de las cabeceras del inventario
+    const alphalabInventoryHeader = document.getElementById("alphalab-inventory-header");
+    if (alphalabInventoryHeader) {
+        alphalabInventoryHeader.addEventListener("click", (e) => {
+            const th = e.target.closest("th[data-sort-key]");
+            if (th) {
+                const key = th.dataset.sortKey;
+                handleInventorySort(key);
             }
         });
     }
@@ -5848,5 +5868,140 @@ function renderAlphalabInventory() {
         
         tbody.appendChild(tr);
     });
+}
+
+// Ordenación del Inventario Alphalab
+function handleInventorySort(key) {
+    if (appData.inventorySortKey === key) {
+        appData.inventorySortDirection = appData.inventorySortDirection === "asc" ? "desc" : "asc";
+    } else {
+        appData.inventorySortKey = key;
+        appData.inventorySortDirection = "asc";
+    }
+
+    // Ordenar los datos
+    appData.alphalabInventory.sort((a, b) => {
+        let valA = a[key];
+        let valB = b[key];
+
+        // Manejar tipo
+        if (typeof valA === 'string') {
+            valA = valA.toLowerCase();
+            valB = valB.toLowerCase();
+        }
+
+        if (valA < valB) return appData.inventorySortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return appData.inventorySortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    // Actualizar iconos de ordenación
+    updateInventorySortIcons();
+
+    // Renderizar la tabla de nuevo
+    renderAlphalabInventory();
+}
+
+function updateInventorySortIcons() {
+    const headers = document.querySelectorAll("#alphalab-inventory-header th[data-sort-key]");
+    headers.forEach(th => {
+        const key = th.dataset.sortKey;
+        const iconSpan = th.querySelector("span");
+        if (iconSpan) {
+            if (key === appData.inventorySortKey) {
+                iconSpan.innerHTML = appData.inventorySortDirection === "asc" ? " ▲" : " ▼";
+                iconSpan.style.color = "var(--neon-cyan)";
+            } else {
+                iconSpan.innerHTML = "";
+            }
+        }
+    });
+}
+
+// Exportar Inventario Alphalab a Excel
+function exportAlphalabInventoryToExcel() {
+    if (!appData.alphalabInventory || appData.alphalabInventory.length === 0) {
+        showNotification("No hay datos de inventario para exportar", "warning");
+        return;
+    }
+
+    const dateStrToday = new Date().toLocaleDateString('es-MX', { 
+        year: 'numeric', month: '2-digit', day: '2-digit', 
+        hour: '2-digit', minute: '2-digit' 
+    });
+    
+    const rows = [
+        ["REPORTE DE INVENTARIO ACTUAL - ALPHALAB"],
+        ["Fecha de exportación:", dateStrToday],
+        ["Valor Total del Inventario:", appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })],
+        ["Valor Categoría Obsoletos:", appData.alphalabInventoryKPIs.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })],
+        ["Valor Producto Terminado:", appData.alphalabInventoryKPIs.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })],
+        ["SKUs en Almacén:", appData.alphalabInventoryKPIs.totalSkus],
+        ["Total de Tarimas:", appData.alphalabInventoryKPIs.totalTarimas],
+        [], // Fila en blanco
+    ];
+
+    const headers = [
+        "No.",
+        "Clasificación",
+        "SKU",
+        "Descripción",
+        "UDM",
+        "Costo Unitario",
+        "Inventario Inicial",
+        "Compras / Entradas",
+        "Consumos / Salidas",
+        "Tarimas",
+        "Inventario Teórico",
+        "Valuación Total",
+        "Inventario Disponible"
+    ];
+
+    rows.push(headers);
+
+    appData.alphalabInventory.forEach(item => {
+        rows.push([
+            item.no,
+            item.clasificacion,
+            item.sku,
+            item.descripcion,
+            item.udm,
+            item.costo_unitario,
+            item.inv_inicial,
+            item.compras,
+            item.consumos,
+            item.tarimas,
+            item.inv_teorico,
+            item.valuacion_total,
+            item.inv_disponible
+        ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Autoajustar anchos de columnas
+    ws['!cols'] = [
+        { wch: 8 },  // No.
+        { wch: 18 }, // Clasificación
+        { wch: 15 }, // SKU
+        { wch: 40 }, // Descripción
+        { wch: 8 },  // UDM
+        { wch: 15 }, // Costo Unitario
+        { wch: 15 }, // Inventario Inicial
+        { wch: 18 }, // Compras
+        { wch: 18 }, // Consumos
+        { wch: 10 }, // Tarimas
+        { wch: 18 }, // Inventario Teórico
+        { wch: 18 }, // Valuación Total
+        { wch: 18 }  // Inventario Disponible
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Inventario Alphalab");
+
+    const fileName = `Inventario_Alphalab_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    showNotification("Inventario exportado a Excel con éxito", "success");
 }
 
