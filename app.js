@@ -5661,12 +5661,12 @@ function parseAlphalabInventory(workbook) {
     const range = XLSX.utils.decode_range(ref);
     const maxRow = range.e.r + 1;
 
-    for (let r = 1; r < maxRow; r++) {
-        const no = getCellValue(sheet, 0, r, null);
+    for (let r = 2; r <= maxRow; r++) {
+        const no = getCellValue(sheet, 0, r, "");
         const sku = getCellText(sheet, 2, r, "").trim();
         
-        // Si no hay No. o SKU, saltar fila
-        if (!no || !sku || sku === "" || sku.toLowerCase() === "sku") continue;
+        // Si no hay SKU, saltar fila
+        if (!sku || sku === "" || sku.toLowerCase() === "sku") continue;
 
         const clasificacion = getCellText(sheet, 1, r, "N/A").trim();
         const descripcion = getCellText(sheet, 3, r, "N/A").trim();
