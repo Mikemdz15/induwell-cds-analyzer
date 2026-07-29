@@ -639,27 +639,45 @@
                 </div>
                 
                 <!-- Cuadro Obsoletos -->
-                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 155px; height: auto; border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: row; justify-content: space-between; align-items: center; min-height: 155px; height: auto; border-radius: 8px; gap: 16px;">
+                    <!-- Lado Izquierdo: Textos y Valor -->
+                    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; flex: 1;">
                         <div>
-                            <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff;">Valor de Categoría Obsoletos</span>
+                            <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff; display: block;">Valor de Categoría Obsoletos</span>
                             <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px; line-height: 1.4; white-space: normal;">Representa la valuación total en dinero de los productos obsoletos en planta (sin movimiento y con costo de almacenamiento).</span>
                         </div>
-                        <i data-lucide="trash-2" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0; margin-left: 12px;"></i>
+                        <div id="inv-kpi-obsoleto" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 12px; font-variant-numeric: tabular-nums;">$0</div>
                     </div>
-                    <div id="inv-kpi-obsoleto" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 12px; font-variant-numeric: tabular-nums;">$0.00</div>
+                    
+                    <!-- Lado Derecho: Rueda de Porcentaje -->
+                    <div class="gauge-circle" style="position: relative; width: 70px; height: 70px; flex-shrink: 0;">
+                        <svg class="progress-ring" viewBox="0 0 70 70" style="width: 70px; height: 70px; transform: rotate(-90deg);">
+                            <circle class="bg-ring" cx="35" cy="35" r="30" stroke-width="4" fill="transparent" stroke="rgba(255,255,255,0.1)"></circle>
+                            <circle id="inv-ring-obsoleto" class="fill-ring" cx="35" cy="35" r="30" stroke-width="5" fill="transparent" stroke="#a2f3a6" stroke-dasharray="188.4" stroke-dashoffset="188.4" style="transition: stroke-dashoffset 0.35s;"></circle>
+                        </svg>
+                        <div id="inv-pct-obsoleto" class="gauge-value" style="font-size: 12px; font-weight: 800; color: #ffffff; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">0%</div>
+                    </div>
                 </div>
 
                 <!-- Cuadro Producto Terminado -->
-                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 155px; height: auto; border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: row; justify-content: space-between; align-items: center; min-height: 155px; height: auto; border-radius: 8px; gap: 16px;">
+                    <!-- Lado Izquierdo: Textos y Valor -->
+                    <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; flex: 1;">
                         <div>
-                            <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff;">Valor de Producto Terminado</span>
+                            <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff; display: block;">Valor de Producto Terminado</span>
                             <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px; line-height: 1.4; white-space: normal;">Representa el valor comercial acumulado del inventario listo para venta e indica la liquidez disponible en stock terminado.</span>
                         </div>
-                        <i data-lucide="package-check" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0; margin-left: 12px;"></i>
+                        <div id="inv-kpi-prod-term" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 12px; font-variant-numeric: tabular-nums;">$0</div>
                     </div>
-                    <div id="inv-kpi-prod-term" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 12px; font-variant-numeric: tabular-nums;">$0.00</div>
+                    
+                    <!-- Lado Derecho: Rueda de Porcentaje -->
+                    <div class="gauge-circle" style="position: relative; width: 70px; height: 70px; flex-shrink: 0;">
+                        <svg class="progress-ring" viewBox="0 0 70 70" style="width: 70px; height: 70px; transform: rotate(-90deg);">
+                            <circle class="bg-ring" cx="35" cy="35" r="30" stroke-width="4" fill="transparent" stroke="rgba(255,255,255,0.1)"></circle>
+                            <circle id="inv-ring-prod-term" class="fill-ring" cx="35" cy="35" r="30" stroke-width="5" fill="transparent" stroke="#a2f3a6" stroke-dasharray="188.4" stroke-dashoffset="188.4" style="transition: stroke-dashoffset 0.35s;"></circle>
+                        </svg>
+                        <div id="inv-pct-prod-term" class="gauge-value" style="font-size: 12px; font-weight: 800; color: #ffffff; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">0%</div>
+                    </div>
                 </div>
             </section>
 

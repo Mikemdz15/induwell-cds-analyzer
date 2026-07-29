@@ -5777,11 +5777,32 @@ function renderAlphalabInventory() {
     const kpiProdTerm = document.getElementById("inv-kpi-prod-term");
     const tbody = document.getElementById("alphalab-inventory-body");
     
-    if (kpiVal) kpiVal.textContent = appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    if (kpiVal) kpiVal.textContent = appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
     if (kpiSkus) kpiSkus.textContent = appData.alphalabInventoryKPIs.totalSkus;
     if (kpiTarimas) kpiTarimas.textContent = Math.round(appData.alphalabInventoryKPIs.totalTarimas).toLocaleString();
-    if (kpiObsoleto) kpiObsoleto.textContent = appData.alphalabInventoryKPIs.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-    if (kpiProdTerm) kpiProdTerm.textContent = appData.alphalabInventoryKPIs.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    if (kpiObsoleto) kpiObsoleto.textContent = appData.alphalabInventoryKPIs.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+    if (kpiProdTerm) kpiProdTerm.textContent = appData.alphalabInventoryKPIs.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+
+    // Actualizar Ruedas de Porcentaje para Obsoletos y Producto Terminado
+    const totalVal = appData.alphalabInventoryKPIs.totalValue || 1; // Evitar división por cero
+    const pctObsoleto = (appData.alphalabInventoryKPIs.obsoletosValue / totalVal) * 100;
+    const pctProdTerm = (appData.alphalabInventoryKPIs.prodTerminadoValue / totalVal) * 100;
+
+    const ringObsoleto = document.getElementById("inv-ring-obsoleto");
+    const pctTxtObsoleto = document.getElementById("inv-pct-obsoleto");
+    if (ringObsoleto && pctTxtObsoleto) {
+        const offset = 188.4 - (pctObsoleto / 100) * 188.4;
+        ringObsoleto.setAttribute("stroke-dashoffset", offset);
+        pctTxtObsoleto.textContent = pctObsoleto.toFixed(1) + "%";
+    }
+
+    const ringProdTerm = document.getElementById("inv-ring-prod-term");
+    const pctTxtProdTerm = document.getElementById("inv-pct-prod-term");
+    if (ringProdTerm && pctTxtProdTerm) {
+        const offset = 188.4 - (pctProdTerm / 100) * 188.4;
+        ringProdTerm.setAttribute("stroke-dashoffset", offset);
+        pctTxtProdTerm.textContent = pctProdTerm.toFixed(1) + "%";
+    }
 
     if (!tbody) return;
     tbody.innerHTML = "";
