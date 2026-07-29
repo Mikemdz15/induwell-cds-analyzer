@@ -5646,7 +5646,9 @@ function parseAlphalabInventory(workbook) {
         totalTarimas: 0,
         totalNoDisponible: 0,
         totalNoDisponibleValue: 0,
-        totalDisponible: 0
+        totalDisponible: 0,
+        obsoletosValue: 0,
+        prodTerminadoValue: 0
     };
 
     if (!workbook) return;
