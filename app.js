@@ -5807,7 +5807,7 @@ function renderAlphalabInventory() {
             <td style="text-align: right; font-variant-numeric: tabular-nums; color: var(--neon-red);">${Math.round(item.consumos).toLocaleString()}</td>
             <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: 600;">${Math.round(item.tarimas).toLocaleString()}</td>
             <td style="text-align: right; font-variant-numeric: tabular-nums;">${Math.round(item.inv_teorico).toLocaleString()}</td>
-            <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: #ffffff;">${item.valuacion_total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
+            <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-primary);">${item.valuacion_total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
             <td style="text-align: right; font-variant-numeric: tabular-nums; color: var(--neon-green); font-weight: 700;">${Math.round(item.inv_disponible).toLocaleString()}</td>
         `;
         
