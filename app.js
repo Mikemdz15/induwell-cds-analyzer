@@ -5663,28 +5663,28 @@ function parseAlphalabInventory(workbook) {
 
     for (let r = 2; r <= maxRow; r++) {
         const no = getCellValue(sheet, 0, r, "");
-        const sku = getCellText(sheet, 2, r, "").trim();
+        const sku = getCellText(sheet, 3, r, "").trim();
         
         // Si no hay SKU, saltar fila
         if (!sku || sku === "" || sku.toLowerCase() === "sku") continue;
 
-        const clasificacion = getCellText(sheet, 1, r, "N/A").trim();
-        const descripcion = getCellText(sheet, 3, r, "N/A").trim();
-        const udm = getCellText(sheet, 4, r, "N/A").trim();
-        const costo_unitario = getCellValue(sheet, 5, r, 0);
-        const inv_inicial = getCellValue(sheet, 6, r, 0);
-        const compras = getCellValue(sheet, 7, r, 0);
-        const consumos = getCellValue(sheet, 8, r, 0);
-        const tarimas = getCellValue(sheet, 9, r, 0);
-        const inv_teorico = getCellValue(sheet, 10, r, 0);
-        const valuacion_total = getCellValue(sheet, 11, r, 0);
-        const notas_credito = getCellValue(sheet, 12, r, 0);
-        const notas_credito_val = getCellValue(sheet, 13, r, 0);
-        const inv_no_disp = getCellValue(sheet, 14, r, 0);
-        const inv_no_disp_val = getCellValue(sheet, 15, r, 0);
-        const bodega_espino = getCellValue(sheet, 16, r, 0);
-        const bodega_espino_val = getCellValue(sheet, 17, r, 0);
-        const inv_disponible = getCellValue(sheet, 18, r, 0);
+        const clasificacion = getCellText(sheet, 2, r, "N/A").trim();
+        const descripcion = getCellText(sheet, 4, r, "N/A").trim();
+        const udm = getCellText(sheet, 5, r, "N/A").trim();
+        const costo_unitario = getCellValue(sheet, 6, r, 0);
+        const inv_inicial = getCellValue(sheet, 7, r, 0);
+        const compras = getCellValue(sheet, 8, r, 0);
+        const consumos = getCellValue(sheet, 9, r, 0);
+        const tarimas = getCellValue(sheet, 10, r, 0);
+        const inv_teorico = getCellValue(sheet, 11, r, 0);
+        const valuacion_total = getCellValue(sheet, 12, r, 0);
+        const notas_credito = getCellValue(sheet, 13, r, 0);
+        const notas_credito_val = getCellValue(sheet, 14, r, 0);
+        const inv_no_disp = getCellValue(sheet, 15, r, 0);
+        const inv_no_disp_val = getCellValue(sheet, 16, r, 0);
+        const bodega_espino = getCellValue(sheet, 17, r, 0);
+        const bodega_espino_val = getCellValue(sheet, 18, r, 0);
+        const inv_disponible = getCellValue(sheet, 19, r, 0);
 
         const item = {
             no,
