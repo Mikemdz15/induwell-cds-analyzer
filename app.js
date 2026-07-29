@@ -33,7 +33,9 @@ let appData = {
         totalTarimas: 0,
         totalNoDisponible: 0,
         totalNoDisponibleValue: 0,
-        totalDisponible: 0
+        totalDisponible: 0,
+        obsoletosValue: 0,
+        prodTerminadoValue: 0
     },
     currentSubTab: "planeacion",
     inventorySearchQuery: ""
@@ -5716,6 +5718,14 @@ function parseAlphalabInventory(workbook) {
         appData.alphalabInventoryKPIs.totalNoDisponible += item.inv_no_disp;
         appData.alphalabInventoryKPIs.totalNoDisponibleValue += item.inv_no_disp_val;
         appData.alphalabInventoryKPIs.totalDisponible += item.inv_disponible;
+
+        // Acumular Obsoletos y Producto Terminado
+        const clsLower = item.clasificacion.toLowerCase().trim();
+        if (clsLower === "obsoleto") {
+            appData.alphalabInventoryKPIs.obsoletosValue += item.valuacion_total;
+        } else if (clsLower === "prod. term.") {
+            appData.alphalabInventoryKPIs.prodTerminadoValue += item.valuacion_total;
+        }
     }
     
     appData.alphalabInventoryKPIs.totalSkus = appData.alphalabInventory.length;
@@ -5761,13 +5771,15 @@ function renderAlphalabInventory() {
     const kpiVal = document.getElementById("inv-kpi-value");
     const kpiSkus = document.getElementById("inv-kpi-skus");
     const kpiTarimas = document.getElementById("inv-kpi-tarimas");
-    const kpiDisponible = document.getElementById("inv-kpi-disponible");
+    const kpiObsoleto = document.getElementById("inv-kpi-obsoleto");
+    const kpiProdTerm = document.getElementById("inv-kpi-prod-term");
     const tbody = document.getElementById("alphalab-inventory-body");
     
     if (kpiVal) kpiVal.textContent = appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
     if (kpiSkus) kpiSkus.textContent = appData.alphalabInventoryKPIs.totalSkus;
     if (kpiTarimas) kpiTarimas.textContent = Math.round(appData.alphalabInventoryKPIs.totalTarimas).toLocaleString();
-    if (kpiDisponible) kpiDisponible.textContent = Math.round(appData.alphalabInventoryKPIs.totalDisponible).toLocaleString() + " uds/kg";
+    if (kpiObsoleto) kpiObsoleto.textContent = appData.alphalabInventoryKPIs.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    if (kpiProdTerm) kpiProdTerm.textContent = appData.alphalabInventoryKPIs.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
     if (!tbody) return;
     tbody.innerHTML = "";

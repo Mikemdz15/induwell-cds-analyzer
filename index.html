@@ -631,6 +631,33 @@
 
         <!-- SECCIÓN: INVENTARIO ACTUAL DE ALPHALAB -->
         <div id="alphalab-inventory-panel" style="display: none; margin-top: 20px;">
+            <!-- Contenedor verde estilo S&OP Héroe para Obsoletos y Producto Terminado -->
+            <div class="sop-hero-panel" style="grid-template-columns: 1fr 1fr; background: transparent; border: none; box-shadow: none; padding: 0; gap: 16px; margin-bottom: 20px;">
+                <!-- Cuadro Obsoletos -->
+                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                        <div>
+                            <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff;">Valor de Categoría Obsoletos</span>
+                            <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px;">Total acumulado de la categoría Obsoleto</span>
+                        </div>
+                        <i data-lucide="trash-2" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0;"></i>
+                    </div>
+                    <div id="inv-kpi-obsoleto" class="gauge-value" style="font-size: 26px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
+                </div>
+
+                <!-- Cuadro Producto Terminado -->
+                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                        <div>
+                            <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff;">Valor de Producto Terminado</span>
+                            <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px;">Total acumulado de la categoría Prod. Term.</span>
+                        </div>
+                        <i data-lucide="package-check" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0;"></i>
+                    </div>
+                    <div id="inv-kpi-prod-term" class="gauge-value" style="font-size: 26px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
+                </div>
+            </div>
+
             <!-- Grid de KPIs de Inventario -->
             <div class="kpi-grid">
                 <!-- KPI 1: Valor del Inventario -->
@@ -672,20 +699,6 @@
                     </div>
                     <div class="kpi-value-area">
                         <div class="kpi-num" id="inv-kpi-tarimas">0</div>
-                    </div>
-                </div>
-
-                <!-- KPI 4: Stock Disponible -->
-                <div class="kpi-card">
-                    <div class="kpi-label-area">
-                        <div>
-                            <span class="kpi-title">Stock Disponible</span>
-                            <p class="kpi-desc">Inventario apto para operación</p>
-                        </div>
-                        <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
-                    </div>
-                    <div class="kpi-value-area">
-                        <div class="kpi-num" id="inv-kpi-disponible">0 <span class="target-val">pzas/kg</span></div>
                     </div>
                 </div>
             </div>
