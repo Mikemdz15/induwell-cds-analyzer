@@ -639,70 +639,70 @@
                 </div>
                 
                 <!-- Cuadro Obsoletos -->
-                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; border-radius: 8px;">
+                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 155px; height: auto; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                         <div>
                             <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff;">Valor de Categoría Obsoletos</span>
-                            <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px;">Total acumulado de la categoría Obsoleto</span>
+                            <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px; line-height: 1.4; white-space: normal;">Representa la valuación total en dinero de los productos obsoletos en planta (sin movimiento y con costo de almacenamiento).</span>
                         </div>
-                        <i data-lucide="trash-2" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0;"></i>
+                        <i data-lucide="trash-2" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0; margin-left: 12px;"></i>
                     </div>
-                    <div id="inv-kpi-obsoleto" class="gauge-value" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
+                    <div id="inv-kpi-obsoleto" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 12px; font-variant-numeric: tabular-nums;">$0.00</div>
                 </div>
 
                 <!-- Cuadro Producto Terminado -->
-                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; border-radius: 8px;">
+                <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 155px; height: auto; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                         <div>
                             <span class="gauge-label" style="font-size: 13px; font-weight: 700; color: #ffffff;">Valor de Producto Terminado</span>
-                            <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px;">Total acumulado de la categoría Prod. Term.</span>
+                            <span class="gauge-desc" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); display: block; margin-top: 4px; line-height: 1.4; white-space: normal;">Representa el valor comercial acumulado del inventario listo para venta e indica la liquidez disponible en stock terminado.</span>
                         </div>
-                        <i data-lucide="package-check" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0;"></i>
+                        <i data-lucide="package-check" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0; margin-left: 12px;"></i>
                     </div>
-                    <div id="inv-kpi-prod-term" class="gauge-value" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
+                    <div id="inv-kpi-prod-term" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 12px; font-variant-numeric: tabular-nums;">$0.00</div>
                 </div>
             </section>
 
             <!-- Grid de KPIs de Inventario -->
             <div class="kpi-grid">
                 <!-- KPI 1: Valor del Inventario -->
-                <div class="kpi-card">
+                <div class="kpi-card" style="height: auto; min-height: 140px;">
                     <div class="kpi-label-area">
                         <div>
-                            <span class="kpi-title">Valor del Inventario</span>
-                            <p class="kpi-desc">Valuación total a costo unitario</p>
+                            <span class="kpi-title">Valor Total del Inventario</span>
+                            <p class="kpi-desc">Suma monetaria total en almacén (357 SKUs) multiplicando las existencias teóricas por su costo unitario.</p>
                         </div>
                         <i data-lucide="dollar-sign" style="width: 15px; height: 15px;"></i>
                     </div>
-                    <div class="kpi-value-area">
+                    <div class="kpi-value-area" style="margin-top: 8px;">
                         <div class="kpi-num" id="inv-kpi-value">$0.00</div>
                     </div>
                 </div>
                 
                 <!-- KPI 2: SKUs Totales -->
-                <div class="kpi-card">
+                <div class="kpi-card" style="height: auto; min-height: 140px;">
                     <div class="kpi-label-area">
                         <div>
-                            <span class="kpi-title">SKUs en Almacén</span>
-                            <p class="kpi-desc">Artículos distintos con stock</p>
+                            <span class="kpi-title">SKUs Totales en Almacén</span>
+                            <p class="kpi-desc">Total de códigos de producto únicos (SKUs) activos que actualmente registran saldo en almacén físico.</p>
                         </div>
                         <i data-lucide="package" style="width: 15px; height: 15px;"></i>
                     </div>
-                    <div class="kpi-value-area">
+                    <div class="kpi-value-area" style="margin-top: 8px;">
                         <div class="kpi-num" id="inv-kpi-skus">0</div>
                     </div>
                 </div>
 
                 <!-- KPI 3: Tarimas en Planta -->
-                <div class="kpi-card">
+                <div class="kpi-card" style="height: auto; min-height: 140px;">
                     <div class="kpi-label-area">
                         <div>
-                            <span class="kpi-title">Total de Tarimas</span>
-                            <p class="kpi-desc">Espacio ocupado en almacén</p>
+                            <span class="kpi-title">Total de Tarimas en Planta</span>
+                            <p class="kpi-desc">Suma total de tarimas físicas reportadas, útil para analizar el volumen ocupado en bodega.</p>
                         </div>
                         <i data-lucide="layers" style="width: 15px; height: 15px;"></i>
                     </div>
-                    <div class="kpi-value-area">
+                    <div class="kpi-value-area" style="margin-top: 8px;">
                         <div class="kpi-num" id="inv-kpi-tarimas">0</div>
                     </div>
                 </div>
