@@ -631,14 +631,13 @@
 
         <!-- SECCIÓN: INVENTARIO ACTUAL DE ALPHALAB -->
         <div id="alphalab-inventory-panel" style="display: none; margin-top: 20px;">
-            <!-- Encabezado de la pestaña -->
-            <div class="hero-title-area" style="margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
-                <h2>Control y Valuación del Inventario Alphalab</h2>
-                <p>Monitoreo detallado de existencias, valuación de inventario obsoleto/producto terminado y distribución por categorías y tarimas.</p>
-            </div>
-
-            <!-- Contenedor verde estilo S&OP Héroe para Obsoletos y Producto Terminado -->
-            <div class="sop-hero-panel" style="grid-template-columns: 1fr 1fr; background: transparent; border: none; box-shadow: none; padding: 0; gap: 16px; margin-bottom: 20px;">
+            <!-- PANEL HÉROE PRINCIPAL DE INVENTARIO ALPHALAB -->
+            <section class="sop-hero-panel alphalab-inv-hero" style="margin-bottom: 20px;">
+                <div class="hero-title-area">
+                    <h2>Control y Valuación del Inventario Alphalab</h2>
+                    <p>Monitoreo detallado de existencias, valuación de inventario obsoleto/producto terminado y distribución por categorías y tarimas.</p>
+                </div>
+                
                 <!-- Cuadro Obsoletos -->
                 <div class="gauge-container" style="min-width: auto; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
@@ -648,7 +647,7 @@
                         </div>
                         <i data-lucide="trash-2" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0;"></i>
                     </div>
-                    <div id="inv-kpi-obsoleto" class="gauge-value" style="font-size: 26px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
+                    <div id="inv-kpi-obsoleto" class="gauge-value" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
                 </div>
 
                 <!-- Cuadro Producto Terminado -->
@@ -660,9 +659,9 @@
                         </div>
                         <i data-lucide="package-check" style="width: 20px; height: 20px; color: #a2f3a6; flex-shrink: 0;"></i>
                     </div>
-                    <div id="inv-kpi-prod-term" class="gauge-value" style="font-size: 26px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
+                    <div id="inv-kpi-prod-term" class="gauge-value" style="font-size: 24px; font-weight: 800; color: #ffffff; text-align: left; margin-top: 8px; font-variant-numeric: tabular-nums;">$0.00</div>
                 </div>
-            </div>
+            </section>
 
             <!-- Grid de KPIs de Inventario -->
             <div class="kpi-grid">

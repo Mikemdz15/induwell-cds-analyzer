@@ -2894,3 +2894,20 @@ body {
     font-size: 12px;
     font-style: italic;
 }
+
+/* Hero Panel específico para Inventario Alphalab (3 columnas: Título + 2 Tarjetas) */
+.alphalab-inv-hero {
+    grid-template-columns: 1.2fr 0.9fr 0.9fr !important;
+}
+
+@media (max-width: 1200px) {
+    .alphalab-inv-hero {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .alphalab-inv-hero {
+        grid-template-columns: 1fr !important;
+    }
+}
