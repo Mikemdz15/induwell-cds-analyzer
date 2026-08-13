@@ -40,7 +40,8 @@ let appData = {
     currentSubTab: "planeacion",
     inventorySearchQuery: "",
     inventorySortKey: "no",
-    inventorySortDirection: "asc"
+    inventorySortDirection: "asc",
+    inventorySubsidiaryFilter: "ALPHALAB"
 };
 
 // Supabase Connection Settings (Se actualiza directamente desde el chat)
@@ -340,6 +341,15 @@ function initUI() {
                 const key = th.dataset.sortKey;
                 handleInventorySort(key);
             }
+        });
+    }
+
+    // Selector de Subsidiaria de Inventarios
+    const invSubsidiarySelect = document.getElementById("inv-subsidiary-select");
+    if (invSubsidiarySelect) {
+        invSubsidiarySelect.addEventListener("change", (e) => {
+            appData.inventorySubsidiaryFilter = e.target.value;
+            renderAlphalabInventory();
         });
     }
 
@@ -1028,8 +1038,8 @@ function recalculateWeeklyKPIs() {
             skuReal += day.prod_real;
         });
         weeklyPlan += skuPlan;
-        // Capped weekly compliance per SKU (unplanned items with 0 plan don't count)
-        weeklyReal += Math.min(skuReal, skuPlan);
+        // Total weekly production sum per SKU (uncapped)
+        weeklyReal += skuReal;
         
         sku.days.forEach(day => {
             weeklyReq += day.requested_ov;
@@ -1056,8 +1066,8 @@ function recalculateWeeklyKPIs() {
             reqDay += day.requested_ov;
             shipDay += day.shipped_curr_week;
             planDay += day.prod_plan;
-            // Capped daily compliance per SKU
-            realDay += Math.min(day.prod_real, day.prod_plan);
+            // Uncapped daily production sum
+            realDay += day.prod_real;
         });
         
         otifTrends[d] = reqDay > 0 ? (shipDay / reqDay) * 100 : 100;
@@ -1077,8 +1087,8 @@ function recalculateWeeklyKPIs() {
             totalRequested += day.requested_ov;
             totalShippedCurr += day.shipped_curr_week;
             totalProdPlan += day.prod_plan;
-            // Capped daily compliance per SKU
-            totalProdReal += Math.min(day.prod_real, day.prod_plan);
+            // Uncapped daily production sum
+            totalProdReal += day.prod_real;
         });
         
         const otifDayVal = totalRequested > 0 ? (totalShippedCurr / totalRequested) * 100 : 100;
@@ -1339,7 +1349,7 @@ function calculateYTDMetrics() {
             }
             
             ytdProdPlan += skuPlan;
-            ytdProdReal += Math.min(skuReal, skuPlan);
+            ytdProdReal += skuReal;
         }
     });
     
@@ -1896,8 +1906,8 @@ function renderCharts() {
                 });
                 planSum += skuPlan;
                 realSum += skuReal;
-                // Cap weekly production at plan per SKU for category S&OP compliance
-                cappedSum += Math.min(skuReal, skuPlan);
+                // Total weekly production sum per SKU (uncapped)
+                cappedSum += skuReal;
             }
         });
         
@@ -5673,9 +5683,13 @@ function parseAlphalabInventory(workbook) {
 
     if (!workbook) return;
 
-    const sheetName = workbook.SheetNames.find(n => n.toLowerCase().replace(/\s+/g, '') === 'invalphalab');
+    // Buscar la hoja de inventario que puede llamarse 'INVENTARIOS' o 'Inv ALphalab'
+    const sheetName = workbook.SheetNames.find(n => {
+        const cleanName = n.toLowerCase().replace(/\s+/g, '');
+        return cleanName === 'invalphalab' || cleanName === 'inventarios';
+    });
     if (!sheetName) {
-        console.warn("No se encontró la hoja de inventario 'Inv ALphalab'");
+        console.warn("No se encontró la hoja de inventario 'INVENTARIOS' o 'Inv ALphalab'");
         return;
     }
 
@@ -5685,33 +5699,82 @@ function parseAlphalabInventory(workbook) {
     const range = XLSX.utils.decode_range(ref);
     const maxRow = range.e.r + 1;
 
-    for (let r = 2; r <= maxRow; r++) {
-        const no = getCellValue(sheet, 0, r, "");
-        const sku = getCellText(sheet, 3, r, "").trim();
+    // Detectar mapeo de columnas dinámicamente inspeccionando la fila 1 (cabeceras)
+    let colIndices = {
+        no: 0,
+        subsidiaria: 1,
+        clasificacion: 2,
+        sku: 3,
+        descripcion: 4,
+        udm: 5,
+        costo_unitario: 6,
+        inv_inicial: 7,
+        compras: 8,
+        consumos: 9,
+        tarimas: 10,
+        inv_teorico: 11,
+        valuacion_total: 12,
+        notas_credito: 13,
+        notas_credito_val: 14,
+        inv_no_disp: 15,
+        inv_no_disp_val: 16,
+        bodega_espino: 17,
+        bodega_espino_val: 18,
+        inv_disponible: 19
+    };
+
+    let hasSubsidiariaCol = false;
+    for (let c = range.s.c; c <= range.e.c; c++) {
+        const headerText = getCellText(sheet, c, 1, "").trim().toLowerCase();
+        if (!headerText) continue;
         
+        if (headerText.includes("no.")) colIndices.no = c;
+        else if (headerText.includes("subsidiaria")) {
+            colIndices.subsidiaria = c;
+            hasSubsidiariaCol = true;
+        }
+        else if (headerText.includes("clasificaci")) colIndices.clasificacion = c;
+        else if (headerText.includes("sku")) colIndices.sku = c;
+        else if (headerText.includes("descripci")) colIndices.descripcion = c;
+        else if (headerText.includes("udm")) colIndices.udm = c;
+        else if (headerText.includes("costo unitario")) colIndices.costo_unitario = c;
+        else if (headerText.includes("inicial")) colIndices.inv_inicial = c;
+        else if (headerText.includes("compras")) colIndices.compras = c;
+        else if (headerText.includes("consumos")) colIndices.consumos = c;
+        else if (headerText.includes("tarimas")) colIndices.tarimas = c;
+        else if (headerText.includes("teórico") || headerText.includes("teorico")) colIndices.inv_teorico = c;
+        else if (headerText.includes("valuación total") || headerText.includes("valuacion total")) colIndices.valuacion_total = c;
+        else if (headerText.includes("disponible") && !headerText.includes("no disponible") && !headerText.includes("$")) colIndices.inv_disponible = c;
+    }
+
+    for (let r = 2; r <= maxRow; r++) {
+        const sku = getCellText(sheet, colIndices.sku, r, "").trim();
         // Si no hay SKU, saltar fila
         if (!sku || sku === "" || sku.toLowerCase() === "sku") continue;
 
-        const clasificacion = getCellText(sheet, 2, r, "N/A").trim();
-        const descripcion = getCellText(sheet, 4, r, "N/A").trim();
-        const udm = getCellText(sheet, 5, r, "N/A").trim();
-        const costo_unitario = getCellValue(sheet, 6, r, 0);
-        const inv_inicial = getCellValue(sheet, 7, r, 0);
-        const compras = getCellValue(sheet, 8, r, 0);
-        const consumos = getCellValue(sheet, 9, r, 0);
-        const tarimas = getCellValue(sheet, 10, r, 0);
-        const inv_teorico = getCellValue(sheet, 11, r, 0);
-        const valuacion_total = getCellValue(sheet, 12, r, 0);
-        const notas_credito = getCellValue(sheet, 13, r, 0);
-        const notas_credito_val = getCellValue(sheet, 14, r, 0);
-        const inv_no_disp = getCellValue(sheet, 15, r, 0);
-        const inv_no_disp_val = getCellValue(sheet, 16, r, 0);
-        const bodega_espino = getCellValue(sheet, 17, r, 0);
-        const bodega_espino_val = getCellValue(sheet, 18, r, 0);
-        const inv_disponible = getCellValue(sheet, 19, r, 0);
+        const no = getCellValue(sheet, colIndices.no, r, "");
+        const subsidiaria = hasSubsidiariaCol ? getCellText(sheet, colIndices.subsidiaria, r, "ALPHALAB").trim().toUpperCase() : "ALPHALAB";
+        const clasificacion = getCellText(sheet, colIndices.clasificacion, r, "N/A").trim();
+        const descripcion = getCellText(sheet, colIndices.descripcion, r, "N/A").trim();
+        const udm = getCellText(sheet, colIndices.udm, r, "N/A").trim();
+        const costo_unitario = getCellValue(sheet, colIndices.costo_unitario, r, 0);
+        const inv_inicial = getCellValue(sheet, colIndices.inv_inicial, r, 0);
+        const compras = getCellValue(sheet, colIndices.compras, r, 0);
+        const consumos = getCellValue(sheet, colIndices.consumos, r, 0);
+        const tarimas = getCellValue(sheet, colIndices.tarimas, r, 0);
+        const inv_teorico = getCellValue(sheet, colIndices.inv_teorico, r, 0);
+        const valuacion_total = getCellValue(sheet, colIndices.valuacion_total, r, 0);
+        const notas_credito = getCellValue(sheet, colIndices.notas_credito, r, 0);
+        const notas_credito_val = getCellValue(sheet, colIndices.notas_credito_val, r, 0);
+        const inv_no_disp = getCellValue(sheet, colIndices.inv_no_disp, r, 0);
+        const inv_no_disp_val = getCellValue(sheet, colIndices.inv_no_disp_val, r, 0);
+        const bodega_espino = getCellValue(sheet, colIndices.bodega_espino, r, 0);
+        const bodega_espino_val = getCellValue(sheet, colIndices.bodega_espino_val, r, 0);
+        const inv_disponible = getCellValue(sheet, colIndices.inv_disponible, r, 0);
 
         const item = {
             no,
+            subsidiaria,
             clasificacion,
             sku,
             descripcion,
@@ -5733,24 +5796,7 @@ function parseAlphalabInventory(workbook) {
         };
 
         appData.alphalabInventory.push(item);
-        
-        // Acumular KPIs
-        appData.alphalabInventoryKPIs.totalValue += item.valuacion_total;
-        appData.alphalabInventoryKPIs.totalTarimas += item.tarimas;
-        appData.alphalabInventoryKPIs.totalNoDisponible += item.inv_no_disp;
-        appData.alphalabInventoryKPIs.totalNoDisponibleValue += item.inv_no_disp_val;
-        appData.alphalabInventoryKPIs.totalDisponible += item.inv_disponible;
-
-        // Acumular Obsoletos y Producto Terminado
-        const clsLower = item.clasificacion.toLowerCase().trim();
-        if (clsLower === "obsoleto") {
-            appData.alphalabInventoryKPIs.obsoletosValue += item.valuacion_total;
-        } else if (clsLower === "prod. term.") {
-            appData.alphalabInventoryKPIs.prodTerminadoValue += item.valuacion_total;
-        }
     }
-    
-    appData.alphalabInventoryKPIs.totalSkus = appData.alphalabInventory.length;
 }
 
 // Cambiar pestañas internas de Alphalab
@@ -5789,7 +5835,53 @@ function switchAlphalabTab(tabName) {
 
 // Renderizar la tabla y KPIs del Inventario
 function renderAlphalabInventory() {
-    // 1. Mostrar KPIs en pantalla
+    const query = appData.inventorySearchQuery.trim().toLowerCase();
+    const subFilter = appData.inventorySubsidiaryFilter || "ALPHALAB";
+
+    // Filtrar items por subsidiaria
+    const filteredBySub = appData.alphalabInventory.filter(item => {
+        if (subFilter === "TODAS") return true;
+        return item.subsidiaria === subFilter;
+    });
+
+    // Filtrar por búsqueda sobre el subconjunto de subsidiarias
+    const filtered = filteredBySub.filter(item => {
+        return item.sku.toLowerCase().includes(query) || 
+               item.descripcion.toLowerCase().includes(query) || 
+               item.clasificacion.toLowerCase().includes(query);
+    });
+
+    // Calcular KPIs dinámicamente sobre la subsidiaria seleccionada (filteredBySub)
+    const kpis = {
+        totalValue: 0,
+        totalSkus: filteredBySub.length,
+        totalTarimas: 0,
+        totalNoDisponible: 0,
+        totalNoDisponibleValue: 0,
+        totalDisponible: 0,
+        obsoletosValue: 0,
+        prodTerminadoValue: 0
+    };
+
+    filteredBySub.forEach(item => {
+        kpis.totalValue += item.valuacion_total;
+        kpis.totalTarimas += item.tarimas;
+        kpis.totalNoDisponible += item.inv_no_disp;
+        kpis.totalNoDisponibleValue += item.inv_no_disp_val;
+        kpis.totalDisponible += item.inv_disponible;
+
+        const clsLower = item.clasificacion.toLowerCase().trim();
+        if (clsLower === "obsoleto") {
+            kpis.obsoletosValue += item.valuacion_total;
+        } else if (clsLower === "prod. term.") {
+            kpis.prodTerminadoValue += item.valuacion_total;
+        }
+    });
+
+    // Guardar en appData para sincronización
+    appData.alphalabInventoryKPIs = kpis;
+
+    // Mostrar KPIs en pantalla (formato moneda sin centavos)
     const kpiVal = document.getElementById("inv-kpi-value");
     const kpiSkus = document.getElementById("inv-kpi-skus");
     const kpiTarimas = document.getElementById("inv-kpi-tarimas");
@@ -5797,16 +5889,16 @@ function renderAlphalabInventory() {
     const kpiProdTerm = document.getElementById("inv-kpi-prod-term");
     const tbody = document.getElementById("alphalab-inventory-body");
     
-    if (kpiVal) kpiVal.textContent = appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
-    if (kpiSkus) kpiSkus.textContent = appData.alphalabInventoryKPIs.totalSkus;
-    if (kpiTarimas) kpiTarimas.textContent = Math.round(appData.alphalabInventoryKPIs.totalTarimas).toLocaleString();
-    if (kpiObsoleto) kpiObsoleto.textContent = appData.alphalabInventoryKPIs.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
-    if (kpiProdTerm) kpiProdTerm.textContent = appData.alphalabInventoryKPIs.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+    if (kpiVal) kpiVal.textContent = kpis.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+    if (kpiSkus) kpiSkus.textContent = kpis.totalSkus;
+    if (kpiTarimas) kpiTarimas.textContent = Math.round(kpis.totalTarimas).toLocaleString();
+    if (kpiObsoleto) kpiObsoleto.textContent = kpis.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+    if (kpiProdTerm) kpiProdTerm.textContent = kpis.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
-    // Actualizar Ruedas de Porcentaje para Obsoletos y Producto Terminado
-    const totalVal = appData.alphalabInventoryKPIs.totalValue || 1; // Evitar división por cero
-    const pctObsoleto = (appData.alphalabInventoryKPIs.obsoletosValue / totalVal) * 100;
-    const pctProdTerm = (appData.alphalabInventoryKPIs.prodTerminadoValue / totalVal) * 100;
+    // Actualizar Ruedas de Porcentaje
+    const totalVal = kpis.totalValue || 1;
+    const pctObsoleto = (kpis.obsoletosValue / totalVal) * 100;
+    const pctProdTerm = (kpis.prodTerminadoValue / totalVal) * 100;
 
     const ringObsoleto = document.getElementById("inv-ring-obsoleto");
     const pctTxtObsoleto = document.getElementById("inv-pct-obsoleto");
@@ -5824,26 +5916,29 @@ function renderAlphalabInventory() {
         pctTxtProdTerm.textContent = pctProdTerm.toFixed(1) + "%";
     }
 
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    
-    const query = appData.inventorySearchQuery.trim().toLowerCase();
-    
-    // Filtrar inventario por la búsqueda
-    const filtered = appData.alphalabInventory.filter(item => {
-        return item.sku.toLowerCase().includes(query) || 
-               item.descripcion.toLowerCase().includes(query) || 
-               item.clasificacion.toLowerCase().includes(query);
-    });
-    
+    // Actualizar título de cabecera dinámicamente
+    const headerTitle = document.getElementById("inv-header-title");
+    if (headerTitle) {
+        if (subFilter === "TODAS") {
+            headerTitle.textContent = "Control y Valuación del Inventario General (Alphalab & Velaluz)";
+        } else if (subFilter === "VELALUZ") {
+            headerTitle.textContent = "Control y Valuación del Inventario Velaluz";
+        } else {
+            headerTitle.textContent = "Control y Valuación del Inventario Alphalab";
+        }
+    }
+
     // Actualizar conteos
     const countShowing = document.getElementById("inv-showing-count");
     const countTotal = document.getElementById("inv-total-count");
     if (countShowing) countShowing.textContent = filtered.length;
-    if (countTotal) countTotal.textContent = appData.alphalabInventory.length;
+    if (countTotal) countTotal.textContent = filteredBySub.length;
+
+    if (!tbody) return;
+    tbody.innerHTML = "";
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted); padding: 30px;">No se encontraron artículos con la búsqueda.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; color: var(--text-muted); padding: 30px;">No se encontraron artículos con la búsqueda.</td></tr>`;
         return;
     }
     
@@ -5852,6 +5947,7 @@ function renderAlphalabInventory() {
         
         tr.innerHTML = `
             <td style="color: var(--text-muted);">${item.no}</td>
+            <td><span class="cell-badge" style="background-color: ${item.subsidiaria === 'VELALUZ' ? 'var(--neon-green-glow)' : 'var(--neon-cyan-glow)'}; color: ${item.subsidiaria === 'VELALUZ' ? 'var(--neon-green)' : 'var(--neon-cyan)'}; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${item.subsidiaria}</span></td>
             <td><span class="cell-badge cell-neutral">${item.clasificacion}</span></td>
             <td style="font-weight: 700; color: var(--neon-cyan);">${item.sku}</td>
             <td style="white-space: normal; max-width: 250px;">${item.descripcion}</td>
@@ -5920,7 +6016,13 @@ function updateInventorySortIcons() {
 
 // Exportar Inventario Alphalab a Excel
 function exportAlphalabInventoryToExcel() {
-    if (!appData.alphalabInventory || appData.alphalabInventory.length === 0) {
+    const subFilter = appData.inventorySubsidiaryFilter || "ALPHALAB";
+    const filteredBySub = appData.alphalabInventory.filter(item => {
+        if (subFilter === "TODAS") return true;
+        return item.subsidiaria === subFilter;
+    });
+
+    if (filteredBySub.length === 0) {
         showNotification("No hay datos de inventario para exportar", "warning");
         return;
     }
@@ -5930,8 +6032,9 @@ function exportAlphalabInventoryToExcel() {
         hour: '2-digit', minute: '2-digit' 
     });
     
+    const titleSub = subFilter === "TODAS" ? "GENERAL (ALPHALAB & VELALUZ)" : subFilter;
     const rows = [
-        ["REPORTE DE INVENTARIO ACTUAL - ALPHALAB"],
+        [`REPORTE DE INVENTARIO ACTUAL - ${titleSub}`],
         ["Fecha de exportación:", dateStrToday],
         ["Valor Total del Inventario:", appData.alphalabInventoryKPIs.totalValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })],
         ["Valor Categoría Obsoletos:", appData.alphalabInventoryKPIs.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })],
@@ -5943,6 +6046,7 @@ function exportAlphalabInventoryToExcel() {
 
     const headers = [
         "No.",
+        "Empresa",
         "Clasificación",
         "SKU",
         "Descripción",
@@ -5959,9 +6063,10 @@ function exportAlphalabInventoryToExcel() {
 
     rows.push(headers);
 
-    appData.alphalabInventory.forEach(item => {
+    filteredBySub.forEach(item => {
         rows.push([
             item.no,
+            item.subsidiaria,
             item.clasificacion,
             item.sku,
             item.descripcion,
@@ -5983,6 +6088,7 @@ function exportAlphalabInventoryToExcel() {
     // Autoajustar anchos de columnas
     ws['!cols'] = [
         { wch: 8 },  // No.
+        { wch: 12 }, // Empresa
         { wch: 18 }, // Clasificación
         { wch: 15 }, // SKU
         { wch: 40 }, // Descripción
@@ -5997,9 +6103,10 @@ function exportAlphalabInventoryToExcel() {
         { wch: 18 }  // Inventario Disponible
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, "Inventario Alphalab");
+    XLSX.utils.book_append_sheet(wb, ws, "Inventario");
 
-    const fileName = `Inventario_Alphalab_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const fileSubName = subFilter === "TODAS" ? "General" : (subFilter === "VELALUZ" ? "Velaluz" : "Alphalab");
+    const fileName = `Inventario_${fileSubName}_${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, fileName);
 
     showNotification("Inventario exportado a Excel con éxito", "success");

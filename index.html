@@ -634,7 +634,7 @@
             <!-- PANEL HÉROE PRINCIPAL DE INVENTARIO ALPHALAB -->
             <section class="sop-hero-panel alphalab-inv-hero" style="margin-bottom: 20px;">
                 <div class="hero-title-area">
-                    <h2>Control y Valuación del Inventario Alphalab</h2>
+                    <h2 id="inv-header-title">Control y Valuación del Inventario Alphalab</h2>
                     <p>Monitoreo detallado de existencias, valuación de inventario obsoleto/producto terminado y distribución por categorías y tarimas.</p>
                 </div>
                 
@@ -729,11 +729,22 @@
             <!-- Barra de búsqueda rápida (Lupa) y Exportar -->
             <div class="controls-panel" style="margin-top: 24px; padding: 15px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 16px; flex: 1; min-width: 300px;">
-                        <div class="search-wrapper" style="flex: 1; max-width: 500px;">
+                    <div style="display: flex; align-items: center; gap: 16px; flex: 1; min-width: 300px; flex-wrap: wrap;">
+                        <div class="search-wrapper" style="flex: 1; max-width: 400px; min-width: 200px;">
                             <i data-lucide="search" class="search-icon" style="width: 14px; height: 14px;"></i>
-                            <input type="text" id="inv-search-input" class="search-input" autocomplete="off" placeholder="Buscar por SKU, descripción o clasificación del producto...">
+                            <input type="text" id="inv-search-input" class="search-input" autocomplete="off" placeholder="Buscar por SKU, descripción o clasificación...">
                         </div>
+                        
+                        <!-- Selector de Subsidiaria para Inventarios -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="inv-subsidiary-select" style="font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Empresa:</label>
+                            <select id="inv-subsidiary-select" style="padding: 0 12px; height: 36px; font-size: 12px; font-weight: 600; border: 1px solid var(--border-color); border-radius: 6px; background-color: var(--bg-card); color: var(--text-primary); cursor: pointer; outline: none; transition: var(--transition-smooth); width: 130px;">
+                                <option value="TODAS">Todas</option>
+                                <option value="ALPHALAB" selected>Alphalab</option>
+                                <option value="VELALUZ">Velaluz</option>
+                            </select>
+                        </div>
+
                         <button id="export-inventory-btn" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer; height: 36px; border: 1px solid var(--border-color); border-radius: 6px; background-color: var(--bg-card-hover); color: var(--text-primary); transition: var(--transition-smooth);">
                             <i data-lucide="download" style="width: 14px; height: 14px;"></i>
                             <span>Exportar a Excel</span>
@@ -752,6 +763,7 @@
                         <thead>
                             <tr id="alphalab-inventory-header">
                                 <th data-sort-key="no" style="cursor: pointer;">No. <span></span></th>
+                                <th data-sort-key="subsidiaria" style="cursor: pointer;">Empresa <span></span></th>
                                 <th data-sort-key="clasificacion" style="cursor: pointer;">Clasificación <span></span></th>
                                 <th data-sort-key="sku" style="cursor: pointer;">SKU <span></span></th>
                                 <th data-sort-key="descripcion" style="cursor: pointer;">Descripción <span></span></th>
