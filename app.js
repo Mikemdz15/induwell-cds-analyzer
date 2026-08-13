@@ -344,14 +344,7 @@ function initUI() {
         });
     }
 
-    // Selector de Subsidiaria de Inventarios
-    const invSubsidiarySelect = document.getElementById("inv-subsidiary-select");
-    if (invSubsidiarySelect) {
-        invSubsidiarySelect.addEventListener("change", (e) => {
-            appData.inventorySubsidiaryFilter = e.target.value;
-            renderAlphalabInventory();
-        });
-    }
+
 
     // Configurar eventos de comentarios
     setupCommentEvents();
@@ -1005,11 +998,13 @@ function applyFilters() {
     renderTriageAlertsPanel();
     renderCharts();
 
-    // Controlar visibilidad de pestañas de Alphalab
+    // Controlar visibilidad de pestañas de Alphalab / Velaluz (ambas tienen Planeación S&OP e Inventario Actual)
     const alphalabTabs = document.getElementById("alphalab-tabs-container");
     if (alphalabTabs) {
-        if (appData.selectedSubsidiary === "ALPHALAB") {
+        if (appData.selectedSubsidiary === "ALPHALAB" || appData.selectedSubsidiary === "VELALUZ") {
             alphalabTabs.style.display = "block";
+            // Sincronizar el filtro de inventario con la subsidiaria seleccionada en la vista principal
+            appData.inventorySubsidiaryFilter = appData.selectedSubsidiary;
             switchAlphalabTab(appData.currentSubTab);
         } else {
             alphalabTabs.style.display = "none";
