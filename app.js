@@ -1753,6 +1753,72 @@ function renderGridTable() {
             tableBody.appendChild(tr);
         });
 
+        // CALCULAR Y AGREGAR TOTALES DIARIOS
+        let sumInitialInv = 0;
+        let sumRequested = 0;
+        let sumShippedPrev = 0;
+        let sumShippedCurr = 0;
+        let sumAdjustments = 0;
+        let sumProdPlan = 0;
+        let sumProdReal = 0;
+        let sumFinalInvTeo = 0;
+        let sumFinalInvReal = 0;
+
+        appData.filteredSkus.forEach(sku => {
+            const day = sku.days[appData.selectedDayIndex];
+            if (day) {
+                sumInitialInv += day.initial_inv || 0;
+                sumRequested += day.requested_ov || 0;
+                sumShippedPrev += day.shipped_prev_week || 0;
+                sumShippedCurr += day.shipped_curr_week || 0;
+                sumAdjustments += day.adjustments || 0;
+                sumProdPlan += day.prod_plan || 0;
+                sumProdReal += day.prod_real || 0;
+                sumFinalInvTeo += day.final_inv_theoretical || 0;
+                sumFinalInvReal += day.final_inv_real || 0;
+            }
+        });
+
+        const totalOtif = sumRequested > 0 ? (sumShippedCurr / sumRequested) : 1.0;
+        const totalCompliance = sumProdPlan > 0 ? (sumProdReal / sumProdPlan) : 1.0;
+
+        let totalOtifClass = "cell-neutral";
+        if (sumRequested > 0) {
+            totalOtifClass = totalOtif >= 1 ? "cell-success" : (totalOtif > 0 ? "cell-warning" : "cell-danger");
+        }
+        
+        let totalComplianceClass = "cell-neutral";
+        if (sumProdPlan > 0) {
+            totalComplianceClass = totalCompliance >= 1 ? "cell-success" : (totalCompliance > 0 ? "cell-warning" : "cell-danger");
+        }
+
+        const totalsTr = document.createElement("tr");
+        totalsTr.style.fontWeight = "bold";
+        totalsTr.style.backgroundColor = "var(--bg-card-hover)";
+        
+        totalsTr.innerHTML = `
+            <td class="sticky-col" style="font-weight: bold; background-color: var(--bg-card-hover); border-top: 2px solid var(--border-color); vertical-align: middle;">TOTALES</td>
+            <td class="sticky-col" style="font-weight: bold; background-color: var(--bg-card-hover); border-top: 2px solid var(--border-color); color: var(--text-secondary); vertical-align: middle;">${appData.filteredSkus.length} SKUs</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${sumInitialInv.toLocaleString()}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${sumRequested.toLocaleString()}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--text-secondary); vertical-align: middle;">${sumShippedPrev > 0 ? sumShippedPrev.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--neon-cyan); vertical-align: middle;">${sumShippedCurr > 0 ? sumShippedCurr.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--neon-red); vertical-align: middle;">${sumAdjustments > 0 ? '-' + sumAdjustments.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">
+                <span class="cell-badge ${totalOtifClass}">${(totalOtif * 100).toFixed(0)}%</span>
+            </td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--text-secondary); vertical-align: middle;">${sumProdPlan > 0 ? sumProdPlan.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--neon-green); vertical-align: middle;">${sumProdReal > 0 ? sumProdReal.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">
+                <span class="cell-badge ${totalComplianceClass}">${(totalCompliance * 100).toFixed(0)}%</span>
+            </td>
+            <td class="num-val ${sumFinalInvTeo < 0 ? 'cell-danger' : ''}" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${Math.round(sumFinalInvTeo).toLocaleString()}</td>
+            <td class="num-val ${sumFinalInvReal < 0 ? 'cell-danger' : ''}" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${Math.round(sumFinalInvReal).toLocaleString()}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">-</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">-</td>
+        `;
+        tableBody.appendChild(totalsTr);
+
     } else {
         tableHeader.innerHTML = `
             ${getHeaderHtml("sku_interno", "Subsidiaria / SKU", "sticky-col", "min-width: 130px;")}
@@ -1857,6 +1923,91 @@ function renderGridTable() {
             
             tableBody.appendChild(tr);
         });
+
+        // CALCULAR Y AGREGAR TOTALES SEMANALES
+        let sumInitialInv = 0;
+        let sumRequested = 0;
+        let sumShippedPrev = 0;
+        let sumShippedCurr = 0;
+        let sumAdjustments = 0;
+        let sumProdPlan = 0;
+        let sumProdReal = 0;
+        let sumFinalInvTeo = 0;
+        let sumFinalInvReal = 0;
+
+        appData.filteredSkus.forEach(sku => {
+            const initialInv = sku.days[0].initial_inv;
+            sumInitialInv += initialInv || 0;
+            
+            let skuRequested = 0;
+            let skuShippedPrev = 0;
+            let skuShippedCurr = 0;
+            let skuAdjustments = 0;
+            let skuProdPlan = 0;
+            let skuProdReal = 0;
+            
+            sku.days.forEach(day => {
+                skuRequested += day.requested_ov || 0;
+                skuShippedPrev += day.shipped_prev_week || 0;
+                skuShippedCurr += day.shipped_curr_week || 0;
+                skuAdjustments += day.adjustments || 0;
+                skuProdPlan += day.prod_plan || 0;
+                skuProdReal += day.prod_real || 0;
+            });
+            
+            sumRequested += skuRequested;
+            sumShippedPrev += skuShippedPrev;
+            sumShippedCurr += skuShippedCurr;
+            sumAdjustments += skuAdjustments;
+            sumProdPlan += skuProdPlan;
+            sumProdReal += skuProdReal;
+            
+            const finalInvTheoretical = initialInv - skuRequested + skuProdPlan - skuAdjustments;
+            const finalInvReal = initialInv - skuShippedCurr - skuShippedPrev + skuProdReal - skuAdjustments;
+            
+            sumFinalInvTeo += finalInvTheoretical;
+            sumFinalInvReal += finalInvReal;
+        });
+
+        const totalOtif = sumRequested > 0 ? (sumShippedCurr / sumRequested) : 1.0;
+        const totalCompliance = sumProdPlan > 0 ? (sumProdReal / sumProdPlan) : 1.0;
+
+        let totalOtifClass = "cell-neutral";
+        if (sumRequested > 0) {
+            totalOtifClass = totalOtif >= 1 ? "cell-success" : (totalOtif > 0 ? "cell-warning" : "cell-danger");
+        }
+        
+        let totalComplianceClass = "cell-neutral";
+        if (sumProdPlan > 0) {
+            totalComplianceClass = totalCompliance >= 1 ? "cell-success" : (totalCompliance > 0 ? "cell-warning" : "cell-danger");
+        }
+
+        const totalsTr = document.createElement("tr");
+        totalsTr.style.fontWeight = "bold";
+        totalsTr.style.backgroundColor = "var(--bg-card-hover)";
+        
+        totalsTr.innerHTML = `
+            <td class="sticky-col" style="font-weight: bold; background-color: var(--bg-card-hover); border-top: 2px solid var(--border-color); vertical-align: middle;">TOTALES</td>
+            <td class="sticky-col" style="font-weight: bold; background-color: var(--bg-card-hover); border-top: 2px solid var(--border-color); color: var(--text-secondary); vertical-align: middle;">${appData.filteredSkus.length} SKUs</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${sumInitialInv.toLocaleString()}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${sumRequested.toLocaleString()}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--text-secondary); vertical-align: middle;">${sumShippedPrev > 0 ? sumShippedPrev.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--neon-cyan); vertical-align: middle;">${sumShippedCurr > 0 ? sumShippedCurr.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--neon-red); vertical-align: middle;">${sumAdjustments > 0 ? '-' + sumAdjustments.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">
+                <span class="cell-badge ${totalOtifClass}">${(totalOtif * 100).toFixed(0)}%</span>
+            </td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--text-secondary); vertical-align: middle;">${sumProdPlan > 0 ? sumProdPlan.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); color: var(--neon-green); vertical-align: middle;">${sumProdReal > 0 ? sumProdReal.toLocaleString() : '-'}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">
+                <span class="cell-badge ${totalComplianceClass}">${(totalCompliance * 100).toFixed(0)}%</span>
+            </td>
+            <td class="num-val ${sumFinalInvTeo < 0 ? 'cell-danger' : ''}" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${Math.round(sumFinalInvTeo).toLocaleString()}</td>
+            <td class="num-val ${sumFinalInvReal < 0 ? 'cell-danger' : ''}" style="font-weight: bold; border-top: 2px solid var(--border-color); vertical-align: middle;">${Math.round(sumFinalInvReal).toLocaleString()}</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">-</td>
+            <td class="num-val" style="font-weight: bold; border-top: 2px solid var(--border-color); text-align: center; vertical-align: middle;">-</td>
+        `;
+        tableBody.appendChild(totalsTr);
     }
     
     // Re-iniciar iconos lucide si es necesario
