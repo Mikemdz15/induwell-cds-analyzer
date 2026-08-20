@@ -5866,7 +5866,8 @@ function parseAlphalabInventory(workbook) {
         inv_no_disp_val: 16,
         bodega_espino: 17,
         bodega_espino_val: 18,
-        inv_disponible: 19
+        inv_disponible: 19,
+        inv_disponible_val: 20
     };
 
     let hasSubsidiariaCol = false;
@@ -5890,7 +5891,14 @@ function parseAlphalabInventory(workbook) {
         else if (headerText.includes("tarimas")) colIndices.tarimas = c;
         else if (headerText.includes("teórico") || headerText.includes("teorico")) colIndices.inv_teorico = c;
         else if (headerText.includes("valuación total") || headerText.includes("valuacion total")) colIndices.valuacion_total = c;
-        else if (headerText.includes("disponible") && !headerText.includes("no disponible") && !headerText.includes("$")) colIndices.inv_disponible = c;
+        else if (headerText.includes("notas de crédito ($)") || headerText.includes("notas de credito ($)")) colIndices.notas_credito_val = c;
+        else if (headerText.includes("notas de crédito") || headerText.includes("notas de credito")) colIndices.notas_credito = c;
+        else if (headerText.includes("no disponible ($)")) colIndices.inv_no_disp_val = c;
+        else if (headerText.includes("no disponible")) colIndices.inv_no_disp = c;
+        else if (headerText.includes("bodega espino ($)")) colIndices.bodega_espino_val = c;
+        else if (headerText.includes("bodega espino")) colIndices.bodega_espino = c;
+        else if (headerText.includes("disponible ($)")) colIndices.inv_disponible_val = c;
+        else if (headerText.includes("disponible") && !headerText.includes("no disponible")) colIndices.inv_disponible = c;
     }
 
     for (let r = 2; r <= maxRow; r++) {
@@ -5917,6 +5925,7 @@ function parseAlphalabInventory(workbook) {
         const bodega_espino = getCellValue(sheet, colIndices.bodega_espino, r, 0);
         const bodega_espino_val = getCellValue(sheet, colIndices.bodega_espino_val, r, 0);
         const inv_disponible = getCellValue(sheet, colIndices.inv_disponible, r, 0);
+        const inv_disponible_val = getCellValue(sheet, colIndices.inv_disponible_val, r, 0);
 
         const item = {
             no,
@@ -5938,7 +5947,8 @@ function parseAlphalabInventory(workbook) {
             inv_no_disp_val: Number(inv_no_disp_val) || 0,
             bodega_espino: Number(bodega_espino) || 0,
             bodega_espino_val: Number(bodega_espino_val) || 0,
-            inv_disponible: Number(inv_disponible) || 0
+            inv_disponible: Number(inv_disponible) || 0,
+            inv_disponible_val: Number(inv_disponible_val) || 0
         };
 
         appData.alphalabInventory.push(item);
@@ -6006,7 +6016,11 @@ function renderAlphalabInventory() {
         totalNoDisponibleValue: 0,
         totalDisponible: 0,
         obsoletosValue: 0,
-        prodTerminadoValue: 0
+        prodTerminadoValue: 0,
+        prodTermNotasCreditoVal: 0,
+        prodTermNoDispVal: 0,
+        prodTermBodegaEspinoVal: 0,
+        prodTermDisponibleVal: 0
     };
 
     filteredBySub.forEach(item => {
@@ -6021,6 +6035,10 @@ function renderAlphalabInventory() {
             kpis.obsoletosValue += item.valuacion_total;
         } else if (clsLower === "prod. term.") {
             kpis.prodTerminadoValue += item.valuacion_total;
+            kpis.prodTermNotasCreditoVal += item.notas_credito_val;
+            kpis.prodTermNoDispVal += item.inv_no_disp_val;
+            kpis.prodTermBodegaEspinoVal += item.bodega_espino_val;
+            kpis.prodTermDisponibleVal += item.inv_disponible_val;
         }
     });
 
@@ -6040,6 +6058,21 @@ function renderAlphalabInventory() {
     if (kpiTarimas) kpiTarimas.textContent = Math.round(kpis.totalTarimas).toLocaleString();
     if (kpiObsoleto) kpiObsoleto.textContent = kpis.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
     if (kpiProdTerm) kpiProdTerm.textContent = kpis.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+
+    // Renderizar desglose de Producto Terminado
+    const kpiProdTermBreakdown = document.getElementById("inv-kpi-prod-term-breakdown");
+    if (kpiProdTermBreakdown) {
+        const fmt = (val) => val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+        kpiProdTermBreakdown.innerHTML = `
+            <span style="white-space: nowrap;">N. Crédito: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermNotasCreditoVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">No Disp: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermNoDispVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">B. Espino: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermBodegaEspinoVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">Disponible: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermDisponibleVal)}</strong></span>
+        `;
+    }
 
     // Actualizar Ruedas de Porcentaje
     const totalVal = kpis.totalValue || 1;
