@@ -6017,10 +6017,21 @@ function renderAlphalabInventory() {
         totalDisponible: 0,
         obsoletosValue: 0,
         prodTerminadoValue: 0,
+        // Desglose de Producto Terminado
         prodTermNotasCreditoVal: 0,
         prodTermNoDispVal: 0,
         prodTermBodegaEspinoVal: 0,
-        prodTermDisponibleVal: 0
+        prodTermDisponibleVal: 0,
+        // Desglose de Obsoletos
+        obsoletosNotasCreditoVal: 0,
+        obsoletosNoDispVal: 0,
+        obsoletosBodegaEspinoVal: 0,
+        obsoletosDisponibleVal: 0,
+        // Desglose del Total del Inventario
+        totalNotasCreditoVal: 0,
+        totalNoDispVal: 0,
+        totalBodegaEspinoVal: 0,
+        totalDisponibleVal: 0
     };
 
     filteredBySub.forEach(item => {
@@ -6030,9 +6041,19 @@ function renderAlphalabInventory() {
         kpis.totalNoDisponibleValue += item.inv_no_disp_val;
         kpis.totalDisponible += item.inv_disponible;
 
+        // Desglose del total
+        kpis.totalNotasCreditoVal += item.notas_credito_val;
+        kpis.totalNoDispVal += item.inv_no_disp_val;
+        kpis.totalBodegaEspinoVal += item.bodega_espino_val;
+        kpis.totalDisponibleVal += item.inv_disponible_val;
+
         const clsLower = item.clasificacion.toLowerCase().trim();
         if (clsLower === "obsoleto") {
             kpis.obsoletosValue += item.valuacion_total;
+            kpis.obsoletosNotasCreditoVal += item.notas_credito_val;
+            kpis.obsoletosNoDispVal += item.inv_no_disp_val;
+            kpis.obsoletosBodegaEspinoVal += item.bodega_espino_val;
+            kpis.obsoletosDisponibleVal += item.inv_disponible_val;
         } else if (clsLower === "prod. term.") {
             kpis.prodTerminadoValue += item.valuacion_total;
             kpis.prodTermNotasCreditoVal += item.notas_credito_val;
@@ -6059,10 +6080,26 @@ function renderAlphalabInventory() {
     if (kpiObsoleto) kpiObsoleto.textContent = kpis.obsoletosValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
     if (kpiProdTerm) kpiProdTerm.textContent = kpis.prodTerminadoValue.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
-    // Renderizar desglose de Producto Terminado
+    // Renderizar desgloses por ubicación
+    const fmt = (val) => val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+
+    // 1. Obsoletos breakdown
+    const kpiObsoletoBreakdown = document.getElementById("inv-kpi-obsoleto-breakdown");
+    if (kpiObsoletoBreakdown) {
+        kpiObsoletoBreakdown.innerHTML = `
+            <span style="white-space: nowrap;">N. Crédito: <strong style="color: #a2f3a6;">${fmt(kpis.obsoletosNotasCreditoVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">No Disp: <strong style="color: #a2f3a6;">${fmt(kpis.obsoletosNoDispVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">B. Espino: <strong style="color: #a2f3a6;">${fmt(kpis.obsoletosBodegaEspinoVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">Disponible: <strong style="color: #a2f3a6;">${fmt(kpis.obsoletosDisponibleVal)}</strong></span>
+        `;
+    }
+
+    // 2. Producto Terminado breakdown
     const kpiProdTermBreakdown = document.getElementById("inv-kpi-prod-term-breakdown");
     if (kpiProdTermBreakdown) {
-        const fmt = (val) => val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
         kpiProdTermBreakdown.innerHTML = `
             <span style="white-space: nowrap;">N. Crédito: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermNotasCreditoVal)}</strong></span>
             <span style="color: rgba(255,255,255,0.3);">|</span>
@@ -6071,6 +6108,20 @@ function renderAlphalabInventory() {
             <span style="white-space: nowrap;">B. Espino: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermBodegaEspinoVal)}</strong></span>
             <span style="color: rgba(255,255,255,0.3);">|</span>
             <span style="white-space: nowrap;">Disponible: <strong style="color: #a2f3a6;">${fmt(kpis.prodTermDisponibleVal)}</strong></span>
+        `;
+    }
+
+    // 3. Valor Total Inventario breakdown
+    const kpiValueBreakdown = document.getElementById("inv-kpi-value-breakdown");
+    if (kpiValueBreakdown) {
+        kpiValueBreakdown.innerHTML = `
+            <span style="white-space: nowrap;">N. Crédito: <strong style="color: #ffffff;">${fmt(kpis.totalNotasCreditoVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">No Disp: <strong style="color: #ffffff;">${fmt(kpis.totalNoDispVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">B. Espino: <strong style="color: #ffffff;">${fmt(kpis.totalBodegaEspinoVal)}</strong></span>
+            <span style="color: rgba(255,255,255,0.3);">|</span>
+            <span style="white-space: nowrap;">Disponible: <strong style="color: #ffffff;">${fmt(kpis.totalDisponibleVal)}</strong></span>
         `;
     }
 
